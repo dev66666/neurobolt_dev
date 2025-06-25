@@ -284,9 +284,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           <Button
             onClick={onNewChat}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200"
+            className="bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200 px-4 py-2 rounded-md flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
+            <span className="font-medium">New Chat</span>
           </Button>
         </div>
         
