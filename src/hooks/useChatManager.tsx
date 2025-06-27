@@ -122,6 +122,7 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
         console.log('Created new chat session:', chatId);
       }
 
+      // Save user message to database
       const { error: userMsgError } = await supabase
         .from('chat_messages')
         .insert({
@@ -142,6 +143,7 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
         userId: user.id
       });
 
+      // Call AI service
       const { data, error } = await supabase.functions.invoke('webhook-handler', {
         body: {
           question: text,
@@ -157,41 +159,55 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
 
       console.log('Webhook response data:', data);
       
+      const aiResponseText = data.response || data.answer || 'Sorry, I could not generate a response.';
+      
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: data.response || data.answer || 'Sorry, I could not generate a response.',
+        text: aiResponseText,
         isUser: false,
         timestamp: new Date()
       };
 
+      // Add AI message to UI immediately
       setMessages(prev => [...prev, aiMessage]);
 
-      // CRITICAL FIX: Save AI message to database
+      // Save AI message to database - CRITICAL FIX
       try {
-        const { error: aiMsgError } = await supabase
+        console.log('Saving AI message to database:', {
+          chatId,
+          userId: user.id,
+          content: aiResponseText,
+          is_user: false
+        });
+
+        const { data: savedAiMessage, error: aiMsgError } = await supabase
           .from('chat_messages')
           .insert({
             chat_session_id: chatId,
             user_id: user.id,
-            content: aiMessage.text,
-            is_user: false  // Key: marks as AI message
-          });
+            content: aiResponseText,
+            is_user: false
+          })
+          .select()
+          .single();
 
         if (aiMsgError) {
           console.error('Error saving AI message:', aiMsgError);
           toast.error('Failed to save AI response');
         } else {
-          console.log('AI message saved successfully to database');
+          console.log('AI message saved successfully to database:', savedAiMessage);
         }
       } catch (saveError) {
         console.error('Error in AI message save:', saveError);
         toast.error('Failed to save AI response to database');
       }
 
-      const questions = generateSuggestedQuestions(aiMessage.text);
+      // Generate suggested questions
+      const questions = generateSuggestedQuestions(aiResponseText);
       setSuggestedQuestions(questions);
       setShowSuggestions(true);
 
+      // Update chat session timestamp
       await supabase
         .from('chat_sessions')
         .update({ updated_at: new Date().toISOString() })
