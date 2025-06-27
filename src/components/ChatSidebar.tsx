@@ -5,6 +5,8 @@ import { Plus, MessageSquare, FileText, Trash2, LogOut, AlertTriangle, Play, Pau
 import { toast } from 'sonner';
 import { useTheme } from '@/contexts/ThemeContext';
 import UserSettings from './UserSettings';
+import BackgroundMusicUpload from './BackgroundMusicUpload';
+import VolumeControl from './VolumeControl';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -44,6 +46,12 @@ interface ChatSidebarProps {
   selectedVoice: 'James' | 'Cassidy' | 'Drew' | 'Lavender';
   onVoiceChange: (voice: 'James' | 'Cassidy' | 'Drew' | 'Lavender') => void;
   isPlaying: boolean;
+  // Background music props
+  musicName?: string;
+  musicVolume?: number;
+  onMusicUpload?: (file: File) => void;
+  onRemoveMusic?: () => void;
+  onVolumeChange?: (volume: number) => void;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -57,7 +65,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onPauseAudio,
   selectedVoice,
   onVoiceChange,
-  isPlaying
+  isPlaying,
+  musicName,
+  musicVolume = 0.3,
+  onMusicUpload,
+  onRemoveMusic,
+  onVolumeChange
 }) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -291,18 +304,44 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           </Button>
         </div>
         
-        {/* Voice Controls */}
-        <div className="space-y-3 mb-4">
-          <Button
-            onClick={isPlaying ? onPauseAudio : onPlayLatestResponse}
-            disabled={!getLatestAIResponse()}
-            size="sm"
-            variant="outline"
-            className="w-full flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105"
-          >
-            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            <span>{isPlaying ? 'Pause' : 'Play Script'}</span>
-          </Button>
+        {/* Audio Controls Section */}
+        <div className="space-y-4 mb-4">
+          {/* Voice Controls */}
+          <div className="space-y-3">
+            <Button
+              onClick={isPlaying ? onPauseAudio : onPlayLatestResponse}
+              disabled={!getLatestAIResponse()}
+              size="sm"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105"
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              <span>{isPlaying ? 'Pause' : 'Play Script'}</span>
+            </Button>
+          </div>
+
+          {/* Background Music Upload */}
+          {onMusicUpload && onRemoveMusic && (
+            <BackgroundMusicUpload
+              musicName={musicName}
+              onMusicUpload={onMusicUpload}
+              onRemoveMusic={onRemoveMusic}
+            />
+          )}
+
+          {/* Volume Control - Only shown when music is uploaded */}
+          {musicName && onVolumeChange && (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Music Volume
+              </div>
+              <VolumeControl
+                volume={musicVolume}
+                onVolumeChange={onVolumeChange}
+                disabled={!musicName}
+              />
+            </div>
+          )}
         </div>
 
         {/* Delete All Button */}

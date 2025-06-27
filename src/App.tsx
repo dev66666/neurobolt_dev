@@ -34,14 +34,19 @@ function AppContent() {
     setShowSuggestions
   } = useChatManager(user, hasAgreed);
 
-  // Audio management
+  // Audio management with background music
   const {
     isPlaying,
     selectedVoice,
     handlePlayLatestResponse,
     handlePauseAudio,
     setSelectedVoice,
-    stopCurrentAudio
+    stopCurrentAudio,
+    musicName,
+    musicVolume,
+    handleMusicUpload,
+    handleRemoveMusic,
+    handleVolumeChange
   } = useAudioManager(user, messages);
 
   // Mobile management
@@ -118,6 +123,11 @@ function AppContent() {
       onPlayLatestResponse={handlePlayLatestResponse}
       onPauseAudio={handlePauseAudio}
       onVoiceChange={setSelectedVoice}
+      musicName={musicName}
+      musicVolume={musicVolume}
+      onMusicUpload={handleMusicUpload}
+      onRemoveMusic={handleRemoveMusic}
+      onVolumeChange={handleVolumeChange}
       onCopy={handleCopy}
       onSpeak={handleSpeak}
       onSignOut={enhancedSignOut}
