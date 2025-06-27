@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, Music, Trash2 } from 'lucide-react';
+import { Upload, Music, Trash2, RotateCcw } from 'lucide-react';
 
 interface BackgroundMusicUploadProps {
   musicName?: string;
+  isCustomMusic?: boolean;
   onMusicUpload: (file: File) => void;
   onRemoveMusic: () => void;
   disabled?: boolean;
@@ -11,6 +12,7 @@ interface BackgroundMusicUploadProps {
 
 const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
   musicName,
+  isCustomMusic = false,
   onMusicUpload,
   onRemoveMusic,
   disabled = false
@@ -61,13 +63,34 @@ const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
           Upload Audio File
         </Button>
       ) : (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+        <div className={`rounded-lg p-3 border ${
+          isCustomMusic 
+            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' 
+            : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <Music className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-              <span className="text-sm text-gray-700 dark:text-gray-300 truncate" title={musicName}>
-                {truncateFileName(musicName)}
-              </span>
+              <Music className={`h-4 w-4 flex-shrink-0 ${
+                isCustomMusic 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-green-600 dark:text-green-400'
+              }`} />
+              <div className="flex-1 min-w-0">
+                <span className={`text-sm font-medium truncate block ${
+                  isCustomMusic 
+                    ? 'text-blue-700 dark:text-blue-300' 
+                    : 'text-green-700 dark:text-green-300'
+                }`} title={musicName}>
+                  {truncateFileName(musicName)}
+                </span>
+                <span className={`text-xs ${
+                  isCustomMusic 
+                    ? 'text-blue-600 dark:text-blue-400' 
+                    : 'text-green-600 dark:text-green-400'
+                }`}>
+                  {isCustomMusic ? 'Custom Upload' : 'Default Piano'}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-1 ml-2">
               <Button
@@ -76,20 +99,22 @@ const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
                 variant="ghost"
                 size="sm"
                 className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                title="Replace music"
+                title="Upload different music"
               >
                 <Upload className="h-3 w-3" />
               </Button>
-              <Button
-                onClick={onRemoveMusic}
-                disabled={disabled}
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                title="Remove music"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              {isCustomMusic && (
+                <Button
+                  onClick={onRemoveMusic}
+                  disabled={disabled}
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                  title="Reset to default piano music"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -106,6 +131,12 @@ const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
       {!musicName && (
         <p className="text-xs text-gray-500 dark:text-gray-400">
           Supported formats: MP3, WAV, OGG, M4A (Max 50MB)
+        </p>
+      )}
+      
+      {musicName && !isCustomMusic && (
+        <p className="text-xs text-green-600 dark:text-green-400">
+          🎹 Default piano music is playing. Upload your own to replace it.
         </p>
       )}
     </div>

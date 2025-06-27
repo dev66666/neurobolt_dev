@@ -49,6 +49,7 @@ interface ChatSidebarProps {
   // Background music props
   musicName?: string;
   musicVolume?: number;
+  isCustomMusic?: boolean;
   onMusicUpload?: (file: File) => void;
   onRemoveMusic?: () => void;
   onVolumeChange?: (volume: number) => void;
@@ -68,6 +69,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   isPlaying,
   musicName,
   musicVolume = 0.3,
+  isCustomMusic = false,
   onMusicUpload,
   onRemoveMusic,
   onVolumeChange
@@ -324,12 +326,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           {onMusicUpload && onRemoveMusic && (
             <BackgroundMusicUpload
               musicName={musicName}
+              isCustomMusic={isCustomMusic}
               onMusicUpload={onMusicUpload}
               onRemoveMusic={onRemoveMusic}
             />
           )}
 
-          {/* Volume Control - Only shown when music is uploaded */}
+          {/* Volume Control - Always shown when music is available */}
           {musicName && onVolumeChange && (
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
               <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -44,6 +44,7 @@ function AppContent() {
     stopCurrentAudio,
     musicName,
     musicVolume,
+    isCustomMusic,
     handleMusicUpload,
     handleRemoveMusic,
     handleVolumeChange
@@ -125,6 +126,7 @@ function AppContent() {
       onVoiceChange={setSelectedVoice}
       musicName={musicName}
       musicVolume={musicVolume}
+      isCustomMusic={isCustomMusic}
       onMusicUpload={handleMusicUpload}
       onRemoveMusic={handleRemoveMusic}
       onVolumeChange={handleVolumeChange}

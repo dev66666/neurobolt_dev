@@ -13,6 +13,7 @@ export const useAudioManager = (user: any, messages: Message[]) => {
   const {
     musicName,
     musicVolume,
+    isCustomMusic,
     handleMusicUpload,
     handleRemoveMusic,
     handleVolumeChange,
@@ -48,6 +49,7 @@ export const useAudioManager = (user: any, messages: Message[]) => {
     // Background Music exports
     musicName,
     musicVolume,
+    isCustomMusic,
     handleMusicUpload,
     handleRemoveMusic,
     handleVolumeChange,

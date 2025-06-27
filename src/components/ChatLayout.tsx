@@ -33,6 +33,7 @@ interface ChatLayoutProps {
   // Background music props
   musicName?: string;
   musicVolume?: number;
+  isCustomMusic?: boolean;
   onMusicUpload?: (file: File) => void;
   onRemoveMusic?: () => void;
   onVolumeChange?: (volume: number) => void;
@@ -68,6 +69,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   onVoiceChange,
   musicName,
   musicVolume,
+  isCustomMusic,
   onMusicUpload,
   onRemoveMusic,
   onVolumeChange,
@@ -97,6 +99,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
           isPlaying={isPlaying}
           musicName={musicName}
           musicVolume={musicVolume}
+          isCustomMusic={isCustomMusic}
           onMusicUpload={onMusicUpload}
           onRemoveMusic={onRemoveMusic}
           onVolumeChange={onVolumeChange}
@@ -127,6 +130,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
               isPlaying={isPlaying}
               musicName={musicName}
               musicVolume={musicVolume}
+              isCustomMusic={isCustomMusic}
               onMusicUpload={onMusicUpload}
               onRemoveMusic={onRemoveMusic}
               onVolumeChange={onVolumeChange}
