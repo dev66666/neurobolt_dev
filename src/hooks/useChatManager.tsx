@@ -81,21 +81,31 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
   const handleSendMessage = async (text: string) => {
     if (!user || !hasAgreed) return;
 
+    console.log('=== STARTING MESSAGE SEND ===');
     console.log('Sending message:', text);
+    console.log('Current messages before send:', messages.length);
+    
     setIsLoading(true);
     setShowSuggestions(false);
 
-    // Create and immediately save user message to prevent disappearing
+    // Create user message with unique timestamp-based ID
+    const userMessageId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: userMessageId,
       text,
       isUser: true,
       timestamp: new Date()
     };
 
-    // CRITICAL FIX: Add user message to state immediately
-    setMessages(prev => [...prev, userMessage]);
-    console.log('User message added to UI immediately:', userMessage);
+    console.log('Created user message:', userMessage);
+
+    // CRITICAL FIX: Add user message to state immediately using functional update
+    setMessages(prevMessages => {
+      const newMessages = [...prevMessages, userMessage];
+      console.log('Updated messages state - Previous count:', prevMessages.length, 'New count:', newMessages.length);
+      console.log('New messages array:', newMessages.map(m => ({ id: m.id, text: m.text.substring(0, 50), isUser: m.isUser })));
+      return newMessages;
+    });
 
     try {
       let chatId = currentChatId;
@@ -129,13 +139,7 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       }
 
       // Save user message to database (async, non-blocking for UI)
-      console.log('Saving user message to database:', {
-        chatId,
-        userId: user.id,
-        content: text,
-        is_user: true
-      });
-
+      console.log('Saving user message to database...');
       const { data: savedUserMessage, error: userMsgError } = await supabase
         .from('chat_messages')
         .insert({
@@ -155,23 +159,22 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
         console.log('User message saved successfully:', savedUserMessage);
         
         // Update the user message with the actual database ID and timestamp
-        setMessages(prev => prev.map(msg => 
-          msg.id === userMessage.id 
-            ? { 
-                ...msg, 
-                id: savedUserMessage.id, 
-                timestamp: new Date(savedUserMessage.created_at) 
-              }
-            : msg
-        ));
+        setMessages(prevMessages => {
+          const updatedMessages = prevMessages.map(msg => 
+            msg.id === userMessageId 
+              ? { 
+                  ...msg, 
+                  id: savedUserMessage.id, 
+                  timestamp: new Date(savedUserMessage.created_at) 
+                }
+              : msg
+          );
+          console.log('Updated user message with DB ID:', savedUserMessage.id);
+          return updatedMessages;
+        });
       }
 
-      console.log('Calling webhook handler with:', {
-        question: text,
-        chatId: chatId,
-        userId: user.id
-      });
-
+      console.log('Calling webhook handler...');
       // Call AI service
       const { data, error } = await supabase.functions.invoke('webhook-handler', {
         body: {
@@ -186,30 +189,28 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
         throw new Error(`Failed to get AI response: ${error.message}`);
       }
 
-      console.log('Webhook response data:', data);
+      console.log('Webhook response received');
       
       const aiResponseText = data.response || data.answer || 'Sorry, I could not generate a response.';
       
       // Create AI message with unique ID
+      const aiMessageId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: aiMessageId,
         text: aiResponseText,
         isUser: false,
         timestamp: new Date()
       };
 
-      // Add AI message to UI immediately
-      setMessages(prev => [...prev, aiMessage]);
-      console.log('AI message added to UI:', aiMessage);
-
-      // Save AI message to database (async, non-blocking)
-      console.log('Saving AI message to database:', {
-        chatId,
-        userId: user.id,
-        content: aiResponseText,
-        is_user: false
+      // Add AI message to UI immediately using functional update
+      setMessages(prevMessages => {
+        const newMessages = [...prevMessages, aiMessage];
+        console.log('Added AI message to UI. Total messages:', newMessages.length);
+        return newMessages;
       });
 
+      // Save AI message to database (async, non-blocking)
+      console.log('Saving AI message to database...');
       const { data: savedAiMessage, error: aiMsgError } = await supabase
         .from('chat_messages')
         .insert({
@@ -224,20 +225,22 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       if (aiMsgError) {
         console.error('Error saving AI message:', aiMsgError);
         toast.error('Failed to save AI response');
-        // Don't remove the message from UI, just log the error
       } else {
         console.log('AI message saved successfully to database:', savedAiMessage);
         
         // Update the AI message with the actual database ID and timestamp
-        setMessages(prev => prev.map(msg => 
-          msg.id === aiMessage.id 
-            ? { 
-                ...msg, 
-                id: savedAiMessage.id, 
-                timestamp: new Date(savedAiMessage.created_at) 
-              }
-            : msg
-        ));
+        setMessages(prevMessages => {
+          const updatedMessages = prevMessages.map(msg => 
+            msg.id === aiMessageId 
+              ? { 
+                  ...msg, 
+                  id: savedAiMessage.id, 
+                  timestamp: new Date(savedAiMessage.created_at) 
+                }
+              : msg
+          );
+          return updatedMessages;
+        });
       }
 
       // Generate suggested questions
@@ -253,7 +256,6 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
           .eq('id', chatId);
       } catch (updateError) {
         console.error('Error updating chat session timestamp:', updateError);
-        // Don't show error to user for this non-critical operation
       }
 
     } catch (error) {
@@ -261,10 +263,10 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       toast.error(`Failed to send message: ${error.message}`);
       
       // IMPORTANT: Don't remove the user message from UI even on error
-      // The user can see their message and try again
       console.log('Keeping user message in UI despite error');
     } finally {
       setIsLoading(false);
+      console.log('=== MESSAGE SEND COMPLETED ===');
     }
   };
 
@@ -275,18 +277,20 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
   };
 
   const handleNewChat = () => {
+    console.log('Starting new chat - clearing messages');
     setCurrentChatId(null);
     setMessages([]);
     setSuggestedQuestions([]);
     setShowSuggestions(false);
-    console.log('Started new chat');
+    console.log('New chat started - messages cleared');
   };
 
   const handleChatSelect = (chatId: string) => {
     if (chatId !== currentChatId) {
+      console.log('Selecting chat:', chatId, 'Previous chat:', currentChatId);
       setCurrentChatId(chatId);
       setShowSuggestions(false);
-      console.log('Selected chat:', chatId);
+      console.log('Chat selected');
     }
   };
 
