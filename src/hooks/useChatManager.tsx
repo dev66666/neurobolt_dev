@@ -85,6 +85,7 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
     setIsLoading(true);
     setShowSuggestions(false);
 
+    // Create and immediately save user message to prevent disappearing
     const userMessage: Message = {
       id: Date.now().toString(),
       text,
@@ -92,8 +93,9 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       timestamp: new Date()
     };
 
-    // Add user message to UI immediately
+    // CRITICAL FIX: Add user message to state immediately
     setMessages(prev => [...prev, userMessage]);
+    console.log('User message added to UI immediately:', userMessage);
 
     try {
       let chatId = currentChatId;
@@ -102,6 +104,7 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       if (!chatId) {
         const chatTitle = text.length > 50 ? text.substring(0, 50) + '...' : text;
         
+        console.log('Creating new chat session with title:', chatTitle);
         const { data: newChat, error: chatError } = await supabase
           .from('chat_sessions')
           .insert({
@@ -116,6 +119,7 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
           console.error('Error creating chat session:', chatError);
           toast.error('Failed to create chat session');
           setIsLoading(false);
+          // Keep the user message in UI even if chat creation fails
           return;
         }
 
@@ -124,7 +128,7 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
         console.log('Created new chat session:', chatId);
       }
 
-      // Save user message to database FIRST
+      // Save user message to database (async, non-blocking for UI)
       console.log('Saving user message to database:', {
         chatId,
         userId: user.id,
@@ -145,23 +149,22 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
 
       if (userMsgError) {
         console.error('Error saving user message:', userMsgError);
-        toast.error('Failed to save user message');
-        setIsLoading(false);
-        return;
+        toast.error('Failed to save message');
+        // Don't remove the message from UI, just log the error
+      } else {
+        console.log('User message saved successfully:', savedUserMessage);
+        
+        // Update the user message with the actual database ID and timestamp
+        setMessages(prev => prev.map(msg => 
+          msg.id === userMessage.id 
+            ? { 
+                ...msg, 
+                id: savedUserMessage.id, 
+                timestamp: new Date(savedUserMessage.created_at) 
+              }
+            : msg
+        ));
       }
-
-      console.log('User message saved successfully:', savedUserMessage);
-
-      // Update the user message with the actual database ID and timestamp
-      setMessages(prev => prev.map(msg => 
-        msg.id === userMessage.id 
-          ? { 
-              ...msg, 
-              id: savedUserMessage.id, 
-              timestamp: new Date(savedUserMessage.created_at) 
-            }
-          : msg
-      ));
 
       console.log('Calling webhook handler with:', {
         question: text,
@@ -187,7 +190,19 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       
       const aiResponseText = data.response || data.answer || 'Sorry, I could not generate a response.';
       
-      // Save AI message to database BEFORE adding to UI
+      // Create AI message with unique ID
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: aiResponseText,
+        isUser: false,
+        timestamp: new Date()
+      };
+
+      // Add AI message to UI immediately
+      setMessages(prev => [...prev, aiMessage]);
+      console.log('AI message added to UI:', aiMessage);
+
+      // Save AI message to database (async, non-blocking)
       console.log('Saving AI message to database:', {
         chatId,
         userId: user.id,
@@ -209,40 +224,45 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       if (aiMsgError) {
         console.error('Error saving AI message:', aiMsgError);
         toast.error('Failed to save AI response');
-        setIsLoading(false);
-        return;
+        // Don't remove the message from UI, just log the error
+      } else {
+        console.log('AI message saved successfully to database:', savedAiMessage);
+        
+        // Update the AI message with the actual database ID and timestamp
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMessage.id 
+            ? { 
+                ...msg, 
+                id: savedAiMessage.id, 
+                timestamp: new Date(savedAiMessage.created_at) 
+              }
+            : msg
+        ));
       }
-
-      console.log('AI message saved successfully to database:', savedAiMessage);
-
-      // Create AI message with database ID and timestamp
-      const aiMessage: Message = {
-        id: savedAiMessage.id,
-        text: aiResponseText,
-        isUser: false,
-        timestamp: new Date(savedAiMessage.created_at)
-      };
-
-      // Add AI message to UI
-      setMessages(prev => [...prev, aiMessage]);
 
       // Generate suggested questions
       const questions = generateSuggestedQuestions(aiResponseText);
       setSuggestedQuestions(questions);
       setShowSuggestions(true);
 
-      // Update chat session timestamp
-      await supabase
-        .from('chat_sessions')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', chatId);
+      // Update chat session timestamp (async, non-blocking)
+      try {
+        await supabase
+          .from('chat_sessions')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', chatId);
+      } catch (updateError) {
+        console.error('Error updating chat session timestamp:', updateError);
+        // Don't show error to user for this non-critical operation
+      }
 
     } catch (error) {
       console.error('Error handling message:', error);
       toast.error(`Failed to send message: ${error.message}`);
       
-      // Remove the user message from UI if there was an error
-      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      // IMPORTANT: Don't remove the user message from UI even on error
+      // The user can see their message and try again
+      console.log('Keeping user message in UI despite error');
     } finally {
       setIsLoading(false);
     }
