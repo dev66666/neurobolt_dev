@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,8 +7,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Bot, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Bot, ArrowLeft, Check, X } from 'lucide-react';
 import { DISCLAIMER_TEXT } from '@/components/DisclaimerModal';
+
+interface PasswordValidation {
+  minLength: boolean;
+  hasUppercase: boolean;
+  hasSpecialChar: boolean;
+  isValid: boolean;
+}
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -21,6 +27,48 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [hasReadAgreement, setHasReadAgreement] = useState(false);
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState(false);
+  const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
+    minLength: false,
+    hasUppercase: false,
+    hasSpecialChar: false,
+    isValid: false
+  });
+
+  // Enhanced special character regex - includes all common special characters
+  const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
+
+  const validatePassword = (pwd: string): PasswordValidation => {
+    console.log('Validating password:', {
+      length: pwd.length,
+      hasUpper: /[A-Z]/.test(pwd),
+      hasSpecial: specialCharRegex.test(pwd),
+      password: pwd.substring(0, 3) + '...' // Log first 3 chars for debugging
+    });
+
+    const minLength = pwd.length >= 8;
+    const hasUppercase = /[A-Z]/.test(pwd);
+    const hasSpecialChar = specialCharRegex.test(pwd);
+    const isValid = minLength && hasUppercase && hasSpecialChar;
+
+    const validation = {
+      minLength,
+      hasUppercase,
+      hasSpecialChar,
+      isValid
+    };
+
+    console.log('Password validation result:', validation);
+    return validation;
+  };
+
+  // Real-time password validation on every keystroke
+  useEffect(() => {
+    if (isSignUp) {
+      const validation = validatePassword(password);
+      setPasswordValidation(validation);
+      console.log('Real-time validation update:', validation);
+    }
+  }, [password, isSignUp]);
 
   const saveUserAgreement = async (userId: string) => {
     try {
@@ -49,11 +97,37 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
+        // Triple-check validation at form submission
+        const finalValidation = validatePassword(password);
+        console.log('Final password validation at submission:', finalValidation);
+
         if (!hasReadAgreement || !hasAgreedToTerms) {
           toast.error('Please read and agree to the terms and disclaimer');
           setIsLoading(false);
           return;
         }
+
+        // Detailed password validation with specific error messages
+        if (!finalValidation.isValid) {
+          const missingRequirements = [];
+          if (!finalValidation.minLength) {
+            missingRequirements.push('at least 8 characters');
+          }
+          if (!finalValidation.hasUppercase) {
+            missingRequirements.push('one uppercase letter');
+          }
+          if (!finalValidation.hasSpecialChar) {
+            missingRequirements.push('one special character (!@#$%^&*()_+-=[]{};\':"|,.&lt;&gt;/?~`)');
+          }
+
+          const errorMessage = `Password must contain: ${missingRequirements.join(', ')}`;
+          console.error('Password validation failed:', errorMessage);
+          toast.error(errorMessage);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Password validation passed, proceeding with signup');
 
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -121,6 +195,14 @@ const Auth = () => {
       setIsLoading(false);
     }
   };
+
+  const ValidationIcon = ({ isValid }: { isValid: boolean }) => (
+    isValid ? (
+      <Check className="h-4 w-4 text-green-500" />
+    ) : (
+      <X className="h-4 w-4 text-red-500" />
+    )
+  );
 
   if (isForgotPassword) {
     return (
@@ -190,8 +272,8 @@ const Auth = () => {
           </CardTitle>
           <CardDescription>
             {isSignUp 
-              ? 'Sign up to start chatting with NeuroChat' 
-              : 'Sign in to access your chat history'
+              ? 'Sign up to start using NeuroHeart.AI Meditative Process Generator' 
+              : 'Sign in to access your meditation sessions'
             }
           </CardDescription>
         </CardHeader>
@@ -233,7 +315,10 @@ const Auth = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={isSignUp ? 8 : 6}
+                  className={isSignUp && password ? (
+                    passwordValidation.isValid ? 'border-green-500' : 'border-red-500'
+                  ) : ''}
                 />
                 <Button
                   type="button"
@@ -249,6 +334,39 @@ const Auth = () => {
                   )}
                 </Button>
               </div>
+
+              {/* Password Requirements - Only show during sign up */}
+              {isSignUp && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-md border">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</p>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <ValidationIcon isValid={passwordValidation.minLength} />
+                      <span className={`text-sm ${passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}`}>
+                        At least 8 characters
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <ValidationIcon isValid={passwordValidation.hasUppercase} />
+                      <span className={`text-sm ${passwordValidation.hasUppercase ? 'text-green-600' : 'text-red-600'}`}>
+                        One uppercase letter (A-Z)
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <ValidationIcon isValid={passwordValidation.hasSpecialChar} />
+                      <span className={`text-sm ${passwordValidation.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
+                        One special character (!@#$%^&*()_+-=[]{};\':"|,.&lt;&gt;/?~`)
+                      </span>
+                    </div>
+                  </div>
+                  {passwordValidation.isValid && (
+                    <div className="mt-2 flex items-center space-x-2">
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span className="text-sm text-green-600 font-medium">Password meets all requirements!</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {isSignUp && (
@@ -301,7 +419,7 @@ const Auth = () => {
             <Button 
               type="submit" 
               className="w-full bg-blue-600 hover:bg-blue-700" 
-              disabled={isLoading || (isSignUp && (!hasReadAgreement || !hasAgreedToTerms))}
+              disabled={isLoading || (isSignUp && (!hasReadAgreement || !hasAgreedToTerms || !passwordValidation.isValid))}
             >
               {isLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
             </Button>
