@@ -92,11 +92,13 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       timestamp: new Date()
     };
 
+    // Add user message to UI immediately
     setMessages(prev => [...prev, userMessage]);
 
     try {
       let chatId = currentChatId;
 
+      // Create new chat if needed
       if (!chatId) {
         const chatTitle = text.length > 50 ? text.substring(0, 50) + '...' : text;
         
@@ -122,20 +124,44 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
         console.log('Created new chat session:', chatId);
       }
 
-      // Save user message to database
-      const { error: userMsgError } = await supabase
+      // Save user message to database FIRST
+      console.log('Saving user message to database:', {
+        chatId,
+        userId: user.id,
+        content: text,
+        is_user: true
+      });
+
+      const { data: savedUserMessage, error: userMsgError } = await supabase
         .from('chat_messages')
         .insert({
           chat_session_id: chatId,
           user_id: user.id,
           content: text,
           is_user: true
-        });
+        })
+        .select()
+        .single();
 
       if (userMsgError) {
         console.error('Error saving user message:', userMsgError);
-        toast.error('Failed to save message');
+        toast.error('Failed to save user message');
+        setIsLoading(false);
+        return;
       }
+
+      console.log('User message saved successfully:', savedUserMessage);
+
+      // Update the user message with the actual database ID and timestamp
+      setMessages(prev => prev.map(msg => 
+        msg.id === userMessage.id 
+          ? { 
+              ...msg, 
+              id: savedUserMessage.id, 
+              timestamp: new Date(savedUserMessage.created_at) 
+            }
+          : msg
+      ));
 
       console.log('Calling webhook handler with:', {
         question: text,
@@ -161,46 +187,44 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
       
       const aiResponseText = data.response || data.answer || 'Sorry, I could not generate a response.';
       
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: aiResponseText,
-        isUser: false,
-        timestamp: new Date()
-      };
+      // Save AI message to database BEFORE adding to UI
+      console.log('Saving AI message to database:', {
+        chatId,
+        userId: user.id,
+        content: aiResponseText,
+        is_user: false
+      });
 
-      // Add AI message to UI immediately
-      setMessages(prev => [...prev, aiMessage]);
-
-      // Save AI message to database - CRITICAL FIX
-      try {
-        console.log('Saving AI message to database:', {
-          chatId,
-          userId: user.id,
+      const { data: savedAiMessage, error: aiMsgError } = await supabase
+        .from('chat_messages')
+        .insert({
+          chat_session_id: chatId,
+          user_id: user.id,
           content: aiResponseText,
           is_user: false
-        });
+        })
+        .select()
+        .single();
 
-        const { data: savedAiMessage, error: aiMsgError } = await supabase
-          .from('chat_messages')
-          .insert({
-            chat_session_id: chatId,
-            user_id: user.id,
-            content: aiResponseText,
-            is_user: false
-          })
-          .select()
-          .single();
-
-        if (aiMsgError) {
-          console.error('Error saving AI message:', aiMsgError);
-          toast.error('Failed to save AI response');
-        } else {
-          console.log('AI message saved successfully to database:', savedAiMessage);
-        }
-      } catch (saveError) {
-        console.error('Error in AI message save:', saveError);
-        toast.error('Failed to save AI response to database');
+      if (aiMsgError) {
+        console.error('Error saving AI message:', aiMsgError);
+        toast.error('Failed to save AI response');
+        setIsLoading(false);
+        return;
       }
+
+      console.log('AI message saved successfully to database:', savedAiMessage);
+
+      // Create AI message with database ID and timestamp
+      const aiMessage: Message = {
+        id: savedAiMessage.id,
+        text: aiResponseText,
+        isUser: false,
+        timestamp: new Date(savedAiMessage.created_at)
+      };
+
+      // Add AI message to UI
+      setMessages(prev => [...prev, aiMessage]);
 
       // Generate suggested questions
       const questions = generateSuggestedQuestions(aiResponseText);
@@ -216,6 +240,9 @@ export const useChatManager = (user: any, hasAgreed: boolean) => {
     } catch (error) {
       console.error('Error handling message:', error);
       toast.error(`Failed to send message: ${error.message}`);
+      
+      // Remove the user message from UI if there was an error
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
     } finally {
       setIsLoading(false);
     }

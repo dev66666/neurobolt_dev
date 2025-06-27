@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Copy, Volume2, User, Bot } from 'lucide-react';
@@ -17,6 +16,36 @@ interface MessageBubbleProps {
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, onSpeak }) => {
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDateTime = (date: Date) => {
+    const now = new Date();
+    const messageDate = new Date(date);
+    
+    // Check if it's today
+    const isToday = messageDate.toDateString() === now.toDateString();
+    
+    // Check if it's yesterday
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = messageDate.toDateString() === yesterday.toDateString();
+    
+    if (isToday) {
+      return `Today ${formatTime(messageDate)}`;
+    } else if (isYesterday) {
+      return `Yesterday ${formatTime(messageDate)}`;
+    } else {
+      // Format as "May 29, 2025 11:12am"
+      return messageDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }) + ' ' + messageDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).toLowerCase();
+    }
   };
 
   return (
@@ -42,6 +71,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, onSpeak 
             : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-md shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
         } px-4 py-3 relative`}>
           
+          {/* Timestamp - Always visible at top */}
+          <div className={`text-xs mb-2 ${
+            message.isUser ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+          }`}>
+            {formatDateTime(message.timestamp)}
+          </div>
+
           {/* Message Text */}
           <div className="mb-2">
             <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
@@ -51,41 +87,31 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, onSpeak 
             </p>
           </div>
 
-          {/* Timestamp and Actions */}
-          <div className={`flex items-center justify-between gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
-            message.isUser ? 'flex-row-reverse' : 'flex-row'
-          }`}>
-            <span className={`text-xs transition-colors duration-200 ${
-              message.isUser ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-            }`}>
-              {formatTime(message.timestamp)}
-            </span>
+          {/* Actions - Show on hover */}
+          <div className={`flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+            <Button
+              onClick={() => onCopy(message.text)}
+              variant="ghost"
+              size="sm"
+              className={`h-6 w-6 p-0 rounded-md transition-all duration-200 hover:scale-110 ${
+                message.isUser 
+                  ? 'hover:bg-blue-500 text-blue-100 hover:text-white' 
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
             
-            <div className="flex gap-1">
+            {!message.isUser && (
               <Button
-                onClick={() => onCopy(message.text)}
+                onClick={() => onSpeak(message.text)}
                 variant="ghost"
                 size="sm"
-                className={`h-6 w-6 p-0 rounded-md transition-all duration-200 hover:scale-110 ${
-                  message.isUser 
-                    ? 'hover:bg-blue-500 text-blue-100 hover:text-white' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
+                className="h-6 w-6 p-0 rounded-md transition-all duration-200 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
               >
-                <Copy className="h-3 w-3" />
+                <Volume2 className="h-3 w-3" />
               </Button>
-              
-              {!message.isUser && (
-                <Button
-                  onClick={() => onSpeak(message.text)}
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 rounded-md transition-all duration-200 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                >
-                  <Volume2 className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
