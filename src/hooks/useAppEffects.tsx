@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 export const useAppEffects = (stopCurrentAudio: () => Promise<void>) => {
   // Set the document title
   useEffect(() => {
-    document.title = 'Neuroheart.AI Mindfulness Coach';
+    document.title = 'Neuroheart.AI Meditative Process Generator';
   }, []);
 
   useEffect(() => {

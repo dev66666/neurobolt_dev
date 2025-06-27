@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -148,7 +147,7 @@ const ChatBot: React.FC<ChatBotProps> = ({
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  NeuroHeart.AI Mindfulness Coach
+                  NeuroHeart.AI Meditative Process Generator
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Your personal wellness companion
@@ -167,7 +166,7 @@ const ChatBot: React.FC<ChatBotProps> = ({
               <span className="text-white font-bold text-2xl">AI</span>
             </div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-              Welcome to your Mindfulness Coach
+              Welcome to your Meditative Process Generator
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
               I'm here to help you with meditation, stress relief, and wellness practices. 
