@@ -122,12 +122,12 @@ const ChatBot: React.FC<ChatBotProps> = ({
       })
     : suggestedQuestions;
 
-  // Fixed meditation-duration questions for welcome screen
+  // Updated welcome questions as specified
   const welcomeMeditationQuestions = [
-    "Can you please generate a 2 mins short meditation session for physical relief?",
-    "Please generate a 5 mins long meditation script to address physical and energetic healing!",
-    "Please generate a long 10 mins meditation script for me to address the root cause of my issue discussed and resolve it!",
-    "Can you create a personalized meditation session based on my current emotional state?"
+    "Help me with my stress today",
+    "Conduct an emotional healing session",
+    "Guide me through a relaxation process",
+    "Meditation for better sleep"
   ];
 
   return (
