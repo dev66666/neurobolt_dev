@@ -109,7 +109,7 @@ It combines the power of AI with carefully crafted wellness techniques to provid
 
 ## 🏗️ Project Structure
 
-`````txt
+```txt
 src/
 ├── components/
 │   ├── ui/
@@ -128,10 +128,10 @@ src/
 │   └── supabase/
 ├── utils/
 ├── pages/
+```
 
 ---
 
-````markdown
 ## 🛠️ Installation & Setup
 
 ### 🔧 Prerequisites
@@ -152,7 +152,7 @@ cd neuroheart-ai-mindfulness-coach
 
 # 3. Install dependencies
 npm install
-`````
+```
 
 ### 🌐 Environment Setup
 
@@ -270,8 +270,3 @@ Special thanks to the platforms and communities that enabled this project:
 > Built with ❤️ for mental wellness and AI empowerment.
 
 **NeuroHeart.AI** – _Your journey to inner peace starts here._ 🧘‍♀️✨
-
-```
-
-```
-

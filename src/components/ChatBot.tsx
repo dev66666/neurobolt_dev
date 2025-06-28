@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Mic, MicOff, Menu, Settings } from 'lucide-react';
 import MessageBubble from './MessageBubble';
+import BoltBadge from './BoltBadge';
 
 interface Message {
   id: string;
@@ -153,6 +154,11 @@ const ChatBot: React.FC<ChatBotProps> = ({
                   Your personal wellness companion
                 </p>
               </div>
+            </div>
+            
+            {/* Bolt.new Badge - Top Right */}
+            <div className="flex-shrink-0">
+              <BoltBadge />
             </div>
           </div>
         </div>
