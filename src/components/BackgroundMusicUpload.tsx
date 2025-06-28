@@ -42,6 +42,26 @@ const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
     return `${truncated}.${extension}`;
   };
 
+  // Display name logic - show "Background Music" for default, actual filename for custom
+  const getDisplayName = () => {
+    if (!musicName) return '';
+    if (isCustomMusic) {
+      return truncateFileName(musicName);
+    } else {
+      return 'Background Music'; // Changed from "Default Piano Music"
+    }
+  };
+
+  // Display subtitle logic
+  const getDisplaySubtitle = () => {
+    if (!musicName) return '';
+    if (isCustomMusic) {
+      return 'Custom Upload';
+    } else {
+      return 'Default Piano'; // Changed from showing the full filename
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -60,7 +80,7 @@ const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
           className="w-full justify-start bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
         >
           <Upload className="h-4 w-4 mr-2" />
-          Upload Audio File
+          Upload Background Music
         </Button>
       ) : (
         <div className={`rounded-lg p-3 border ${
@@ -81,14 +101,14 @@ const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
                     ? 'text-blue-700 dark:text-blue-300' 
                     : 'text-green-700 dark:text-green-300'
                 }`} title={musicName}>
-                  {truncateFileName(musicName)}
+                  {getDisplayName()}
                 </span>
                 <span className={`text-xs ${
                   isCustomMusic 
                     ? 'text-blue-600 dark:text-blue-400' 
                     : 'text-green-600 dark:text-green-400'
                 }`}>
-                  {isCustomMusic ? 'Custom Upload' : 'Default Piano'}
+                  {getDisplaySubtitle()}
                 </span>
               </div>
             </div>
@@ -136,7 +156,7 @@ const BackgroundMusicUpload: React.FC<BackgroundMusicUploadProps> = ({
       
       {musicName && !isCustomMusic && (
         <p className="text-xs text-green-600 dark:text-green-400">
-          🎹 Default piano music is playing. Upload your own to replace it.
+          🎹 Default piano music is chosen. Upload your own to replace it.
         </p>
       )}
     </div>
