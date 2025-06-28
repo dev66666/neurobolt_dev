@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, MessageSquare, FileText, Trash2, LogOut, AlertTriangle, Play, Pause, User } from 'lucide-react';
+import { Plus, MessageSquare, FileText, Trash2, LogOut, AlertTriangle, Play, Pause, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '@/contexts/ThemeContext';
 import UserSettings from './UserSettings';
@@ -46,6 +46,7 @@ interface ChatSidebarProps {
   selectedVoice: 'James' | 'Cassidy' | 'Drew' | 'Lavender';
   onVoiceChange: (voice: 'James' | 'Cassidy' | 'Drew' | 'Lavender') => void;
   isPlaying: boolean;
+  isAudioProcessing?: boolean;
   // Background music props
   musicName?: string;
   musicVolume?: number;
@@ -67,6 +68,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   selectedVoice,
   onVoiceChange,
   isPlaying,
+  isAudioProcessing = false,
   musicName,
   musicVolume = 0.3,
   isCustomMusic = false,
@@ -260,6 +262,34 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     return name.charAt(0).toUpperCase();
   };
 
+  // Determine button state and content
+  const getPlayButtonContent = () => {
+    if (isAudioProcessing) {
+      return {
+        icon: <Loader2 className="h-4 w-4 animate-spin" />,
+        text: 'Processing...',
+        disabled: true,
+        onClick: () => {}
+      };
+    } else if (isPlaying) {
+      return {
+        icon: <Pause className="h-4 w-4" />,
+        text: 'Pause',
+        disabled: false,
+        onClick: onPauseAudio
+      };
+    } else {
+      return {
+        icon: <Play className="h-4 w-4" />,
+        text: 'Play Script',
+        disabled: !getLatestAIResponse(),
+        onClick: onPlayLatestResponse
+      };
+    }
+  };
+
+  const playButtonContent = getPlayButtonContent();
+
   return (
     <div className="w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-screen transition-colors duration-200 overflow-hidden">
       <style>
@@ -308,17 +338,21 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         
         {/* Audio Controls Section */}
         <div className="space-y-4 mb-4">
-          {/* Voice Controls */}
+          {/* Voice Controls with Enhanced State Management */}
           <div className="space-y-3">
             <Button
-              onClick={isPlaying ? onPauseAudio : onPlayLatestResponse}
-              disabled={!getLatestAIResponse()}
+              onClick={playButtonContent.onClick}
+              disabled={playButtonContent.disabled}
               size="sm"
               variant="outline"
-              className="w-full flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105"
+              className={`w-full flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 ${
+                isAudioProcessing ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' : ''
+              } ${
+                isPlaying ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : ''
+              }`}
             >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              <span>{isPlaying ? 'Pause' : 'Play Script'}</span>
+              {playButtonContent.icon}
+              <span>{playButtonContent.text}</span>
             </Button>
           </div>
 

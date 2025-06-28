@@ -26,25 +26,27 @@ export const useAudioManager = (user: any, messages: Message[]) => {
   // TTS audio functionality with background music integration
   const {
     isPlaying,
+    isAudioProcessing,
     selectedVoice,
     currentAudio,
-    isAudioProcessing,
     setSelectedVoice,
     handlePlayLatestResponse,
     handlePauseAudio,
-    stopCurrentAudio
+    stopCurrentAudio,
+    playSpecificText
   } = useTTSAudio(user, messages, playBackgroundMusic, stopBackgroundMusic);
 
   return {
     // TTS Audio exports
     isPlaying,
+    isAudioProcessing,
     selectedVoice,
     currentAudio,
-    isAudioProcessing,
     setSelectedVoice,
     handlePlayLatestResponse,
     handlePauseAudio,
     stopCurrentAudio,
+    playSpecificText,
     
     // Background Music exports
     musicName,

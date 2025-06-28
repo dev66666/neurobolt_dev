@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Mic, MicOff, Menu, Settings } from 'lucide-react';
 import MessageBubble from './MessageBubble';
-import BoltBadge from './BoltBadge';
 
 interface Message {
   id: string;
@@ -123,6 +122,14 @@ const ChatBot: React.FC<ChatBotProps> = ({
       })
     : suggestedQuestions;
 
+  // Fixed meditation-duration questions for welcome screen
+  const welcomeMeditationQuestions = [
+    "Can you please generate a 2 mins short meditation session for physical relief?",
+    "Please generate a 5 mins long meditation script to address physical and energetic healing!",
+    "Please generate a long 10 mins meditation script for me to address the root cause of my issue discussed and resolve it!",
+    "Can you create a personalized meditation session based on my current emotional state?"
+  ];
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
@@ -155,11 +162,6 @@ const ChatBot: React.FC<ChatBotProps> = ({
                 </p>
               </div>
             </div>
-            
-            {/* Bolt.new Badge - Top Right */}
-            <div className="flex-shrink-0">
-              <BoltBadge />
-            </div>
           </div>
         </div>
       </div>
@@ -175,22 +177,16 @@ const ChatBot: React.FC<ChatBotProps> = ({
               Welcome to your Meditative Process Generator
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-              I'm here to help you with meditation, stress relief, and wellness practices. 
-              What would you like to explore today?
+              I'm here to create personalized meditation scripts for you. Choose a duration that feels right for your current needs.
             </p>
             <div className="flex flex-wrap justify-center gap-2 max-w-2xl mx-auto">
-              {[
-                "Help me with a breathing exercise",
-                "I'm feeling stressed today",
-                "Guide me through meditation",
-                "Tips for better sleep"
-              ].map((suggestion, index) => (
+              {welcomeMeditationQuestions.map((suggestion, index) => (
                 <Button
                   key={index}
                   variant="outline"
                   size="sm"
                   onClick={() => handleSuggestionClick(suggestion)}
-                  className="bg-white/60 dark:bg-gray-800/60 hover:bg-white dark:hover:bg-gray-800 border-gray-300 dark:border-gray-600"
+                  className="bg-white/60 dark:bg-gray-800/60 hover:bg-white dark:hover:bg-gray-800 border-gray-300 dark:border-gray-600 text-left justify-start max-w-xs"
                   disabled={isLoading}
                 >
                   {suggestion}
@@ -226,7 +222,7 @@ const ChatBot: React.FC<ChatBotProps> = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask me about mindfulness, meditation, or wellness..."
+              placeholder="Ask me to create a meditation script for you..."
               className="min-h-[44px] max-h-32 resize-none pr-12 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400"
               disabled={isLoading}
             />

@@ -48,6 +48,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, onSpeak 
     }
   };
 
+  // Handle speaker button click - play this specific message's text
+  const handleSpeakClick = () => {
+    onSpeak(message.text);
+  };
+
   return (
     <div className={`group flex ${message.isUser ? 'justify-end' : 'justify-start'} mb-6 animate-fade-in`}>
       <div className={`flex max-w-[85%] lg:max-w-[70%] ${message.isUser ? 'flex-row-reverse' : 'flex-row'} gap-3 transform transition-all duration-300 ease-out`}>
@@ -104,7 +109,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, onSpeak 
             
             {!message.isUser && (
               <Button
-                onClick={() => onSpeak(message.text)}
+                onClick={handleSpeakClick}
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0 rounded-md transition-all duration-200 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"

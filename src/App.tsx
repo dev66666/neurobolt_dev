@@ -37,11 +37,13 @@ function AppContent() {
   // Audio management with background music
   const {
     isPlaying,
+    isAudioProcessing,
     selectedVoice,
     handlePlayLatestResponse,
     handlePauseAudio,
     setSelectedVoice,
     stopCurrentAudio,
+    playSpecificText,
     musicName,
     musicVolume,
     isCustomMusic,
@@ -88,8 +90,9 @@ function AppContent() {
     closeMobileSidebar();
   };
 
+  // Enhanced speak handler that uses the specific text TTS function
   const handleSpeak = (text: string) => {
-    handlePlayLatestResponse();
+    playSpecificText(text);
   };
 
   if (loading) {
@@ -120,6 +123,7 @@ function AppContent() {
       onChatSelect={enhancedChatSelect}
       onNewChat={enhancedNewChat}
       isPlaying={isPlaying}
+      isAudioProcessing={isAudioProcessing}
       selectedVoice={selectedVoice}
       onPlayLatestResponse={handlePlayLatestResponse}
       onPauseAudio={handlePauseAudio}
