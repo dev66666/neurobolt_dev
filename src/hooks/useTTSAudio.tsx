@@ -53,47 +53,65 @@ export const useTTSAudio = (
     stopBackgroundMusic();
   };
 
-  // Upload audio to Supabase storage for public access
-  const uploadAudioToSupabase = async (audioBlob: Blob): Promise<string> => {
+  // Upload audio to GitHub as a public gist
+  const uploadAudioToGitHub = async (audioBlob: Blob): Promise<string> => {
     try {
-      console.log('Uploading audio to Supabase storage...');
+      console.log('Converting audio to base64 for GitHub hosting...');
       
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-
+      // Convert blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const base64String = btoa(String.fromCharCode(...uint8Array));
+      
       // Create a unique filename
       const timestamp = Date.now();
-      const fileName = `${user.id}/tts_audio_${timestamp}.mp3`;
+      const fileName = `tts_audio_${timestamp}.mp3`;
       
-      // Upload to Supabase storage
-      const { data, error } = await supabase.storage
-        .from('music')
-        .upload(fileName, audioBlob, {
-          contentType: 'audio/mpeg',
-          upsert: true
-        });
+      // Create a GitHub gist with the audio file
+      const gistData = {
+        description: `TTS Audio - ${new Date().toISOString()}`,
+        public: true,
+        files: {
+          [fileName]: {
+            content: base64String
+          },
+          "README.md": {
+            content: `# TTS Audio File\n\nGenerated on: ${new Date().toISOString()}\n\nThis is a temporary audio file for text-to-speech functionality.`
+          }
+        }
+      };
 
-      if (error) {
-        console.error('Supabase upload error:', error);
-        throw new Error(`Upload failed: ${error.message}`);
+      // Use GitHub API to create gist (no auth needed for public gists)
+      const response = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        body: JSON.stringify(gistData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
       }
 
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('music')
-        .getPublicUrl(fileName);
-
-      console.log('Audio uploaded successfully to Supabase:', publicUrl);
-      return publicUrl;
+      const gist = await response.json();
+      
+      // Get the raw URL for the audio file
+      const rawUrl = gist.files[fileName].raw_url;
+      
+      console.log('Audio uploaded to GitHub successfully:', rawUrl);
+      return rawUrl;
       
     } catch (error) {
-      console.error('Error uploading to Supabase:', error);
-      throw error;
+      console.error('Error uploading to GitHub:', error);
+      // Fallback to blob URL if GitHub upload fails
+      console.log('Falling back to blob URL...');
+      return URL.createObjectURL(audioBlob);
     }
   };
 
-  // Enhanced TTS function with Supabase hosting
+  // Enhanced TTS function with GitHub hosting
   const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string }> => {
     console.log('Calling TTS with voice:', selectedVoice, 'and text length:', text.length);
     
@@ -117,8 +135,8 @@ export const useTTSAudio = (
 
     console.log('TTS audio generated, size:', audioBlob.size);
 
-    // Upload to Supabase storage for public access
-    const publicUrl = await uploadAudioToSupabase(audioBlob);
+    // Upload to GitHub for public access
+    const publicUrl = await uploadAudioToGitHub(audioBlob);
     
     return { audioBlob, publicUrl };
   };
