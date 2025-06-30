@@ -53,58 +53,7 @@ export const useTTSAudio = (
     stopBackgroundMusic();
   };
 
-  // Upload audio to GitHub as a public gist using the base64 string directly
-  const uploadAudioToGitHub = async (base64Audio: string): Promise<string> => {
-    try {
-      console.log('Uploading audio to GitHub using provided base64 string...');
-      
-      // Create a unique filename
-      const timestamp = Date.now();
-      const fileName = `tts_audio_${timestamp}.mp3`;
-      
-      // Create a GitHub gist with the audio file
-      const gistData = {
-        description: `TTS Audio - ${new Date().toISOString()}`,
-        public: true,
-        files: {
-          [fileName]: {
-            content: base64Audio
-          },
-          "README.md": {
-            content: `# TTS Audio File\n\nGenerated on: ${new Date().toISOString()}\n\nThis is a temporary audio file for text-to-speech functionality.`
-          }
-        }
-      };
-
-      // Use GitHub API to create gist (no auth needed for public gists)
-      const response = await fetch('https://api.github.com/gists', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.github.v3+json'
-        },
-        body: JSON.stringify(gistData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`);
-      }
-
-      const gist = await response.json();
-      
-      // Get the raw URL for the audio file
-      const rawUrl = gist.files[fileName].raw_url;
-      
-      console.log('Audio uploaded to GitHub successfully:', rawUrl);
-      return rawUrl;
-      
-    } catch (error) {
-      console.error('Error uploading to GitHub:', error);
-      throw error; // Re-throw to handle in calling function
-    }
-  };
-
-  // Enhanced TTS function with GitHub hosting
+  // Enhanced TTS function that receives public URL from edge function
   const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string | null }> => {
     console.log('Calling TTS with voice:', selectedVoice, 'and text length:', text.length);
     
@@ -128,13 +77,13 @@ export const useTTSAudio = (
 
     console.log('TTS audio generated, size:', audioBlob.size);
 
-    // Try to upload to GitHub for public access
-    let publicUrl: string | null = null;
-    try {
-      publicUrl = await uploadAudioToGitHub(data.audio);
-    } catch (error) {
-      console.warn('GitHub upload failed, video generation will not be available:', error);
-      // Don't throw here - we can still play audio locally
+    // The public URL is now provided by the edge function
+    const publicUrl = data.publicUrl || null;
+    
+    if (publicUrl) {
+      console.log('Public URL received from edge function:', publicUrl);
+    } else {
+      console.warn('No public URL available, video generation will not be available');
     }
     
     return { audioBlob, publicUrl };
