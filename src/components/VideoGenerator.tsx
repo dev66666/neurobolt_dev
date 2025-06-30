@@ -41,7 +41,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
   // Calculate if button should be disabled
   const isButtonDisabled = disabled || !audioUrl || isGenerating;
 
-  // Validate and prepare audio URL for Tavus
+  // Validate audio URL for Tavus
   const validateAudioUrl = async (url: string): Promise<boolean> => {
     try {
       console.log('Validating audio URL:', url);
@@ -77,6 +77,9 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
     setProgress(0);
     setElapsedTime(0);
     setStatus('Validating audio URL...');
+    
+    // Show dialog immediately when generation starts
+    setShowVideoDialog(true);
 
     try {
       // Validate the audio URL
@@ -145,6 +148,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       
       setIsGenerating(false);
       setStatus('');
+      setShowVideoDialog(false);
     }
   };
 
@@ -187,7 +191,6 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
           setGeneratedVideos(prev => [newVideo, ...prev]);
           
           setIsGenerating(false);
-          setShowVideoDialog(true);
           toast.success('🎬 Your meditation video is ready!');
           return;
         } else if (data.status === 'failed') {
@@ -267,28 +270,6 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         </div>
       )}
 
-      {/* Status and Progress */}
-      {isGenerating && (
-        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
-          <div className="text-xs text-purple-700 dark:text-purple-300 mb-2">
-            {status}
-          </div>
-          <div className="space-y-2">
-            <Progress value={progress} className="h-2" />
-            <div className="text-xs text-purple-600 dark:text-purple-400 text-center">
-              {elapsedTime} min elapsed • Up to 90 min total
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Status message when not generating */}
-      {!isGenerating && status && (
-        <div className="text-xs text-gray-600 dark:text-gray-400 p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
-          {status}
-        </div>
-      )}
-
       {/* Generated Videos Section */}
       {generatedVideos.length > 0 && (
         <div className="space-y-2">
@@ -325,15 +306,39 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         </div>
       )}
 
-      {/* Video Dialog with Auto-play */}
+      {/* Video Dialog - Shows immediately when generation starts */}
       <Dialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>🎬 Your Meditation Video is Ready!</DialogTitle>
+            <DialogTitle>
+              {currentVideoUrl ? '🎬 Your Meditation Video is Ready!' : '🎥 Generating Your Video...'}
+            </DialogTitle>
             <DialogDescription>
-              Your personalized meditation video has been successfully generated.
+              {currentVideoUrl 
+                ? 'Your personalized meditation video has been successfully generated.'
+                : 'Please wait while we create your personalized meditation video.'
+              }
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Show progress while generating */}
+          {isGenerating && !currentVideoUrl && (
+            <div className="space-y-4">
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                <div className="text-sm text-purple-700 dark:text-purple-300 mb-3">
+                  {status}
+                </div>
+                <div className="space-y-2">
+                  <Progress value={progress} className="h-3" />
+                  <div className="text-sm text-purple-600 dark:text-purple-400 text-center">
+                    {elapsedTime} min elapsed • Up to 90 min total
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Show video when ready */}
           {currentVideoUrl && (
             <div className="space-y-4">
               <div className="aspect-video bg-black rounded-lg overflow-hidden">

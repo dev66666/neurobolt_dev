@@ -53,72 +53,47 @@ export const useTTSAudio = (
     stopBackgroundMusic();
   };
 
-  // Upload audio to a public hosting service (using file.io for temporary hosting)
-  const uploadAudioToPublicHost = async (audioBlob: Blob): Promise<string> => {
+  // Upload audio to Supabase storage for public access
+  const uploadAudioToSupabase = async (audioBlob: Blob): Promise<string> => {
     try {
-      console.log('Uploading audio to public host...');
+      console.log('Uploading audio to Supabase storage...');
       
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.mp3');
-      
-      // Use file.io for temporary public hosting (24 hours)
-      const response = await fetch('https://file.io', {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
+      if (!user?.id) {
+        throw new Error('User not authenticated');
       }
+
+      // Create a unique filename
+      const timestamp = Date.now();
+      const fileName = `${user.id}/tts_audio_${timestamp}.mp3`;
       
-      const data = await response.json();
-      
-      if (!data.success || !data.link) {
-        throw new Error('Upload service did not return a valid link');
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('music')
+        .upload(fileName, audioBlob, {
+          contentType: 'audio/mpeg',
+          upsert: true
+        });
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
       }
-      
-      console.log('Audio uploaded successfully:', data.link);
-      return data.link;
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('music')
+        .getPublicUrl(fileName);
+
+      console.log('Audio uploaded successfully to Supabase:', publicUrl);
+      return publicUrl;
       
     } catch (error) {
-      console.error('Error uploading to file.io, trying alternative method:', error);
-      
-      // Fallback: Try using tmpfiles.org
-      try {
-        const formData = new FormData();
-        formData.append('file', audioBlob, 'audio.mp3');
-        
-        const response = await fetch('https://tmpfiles.org/api/v1/upload', {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Fallback upload failed: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.status === 'success' && data.data && data.data.url) {
-          console.log('Audio uploaded to fallback service:', data.data.url);
-          return data.data.url;
-        }
-        
-        throw new Error('Fallback service did not return a valid URL');
-        
-      } catch (fallbackError) {
-        console.error('Fallback upload also failed:', fallbackError);
-        
-        // Final fallback: Use a blob URL and warn the user
-        const blobUrl = URL.createObjectURL(audioBlob);
-        console.warn('Using blob URL as final fallback:', blobUrl);
-        toast.error('Could not upload audio to public host. Video generation may not work.');
-        return blobUrl;
-      }
+      console.error('Error uploading to Supabase:', error);
+      throw error;
     }
   };
 
-  // Enhanced TTS function with public hosting
+  // Enhanced TTS function with Supabase hosting
   const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string }> => {
     console.log('Calling TTS with voice:', selectedVoice, 'and text length:', text.length);
     
@@ -142,8 +117,8 @@ export const useTTSAudio = (
 
     console.log('TTS audio generated, size:', audioBlob.size);
 
-    // Upload to public hosting service
-    const publicUrl = await uploadAudioToPublicHost(audioBlob);
+    // Upload to Supabase storage for public access
+    const publicUrl = await uploadAudioToSupabase(audioBlob);
     
     return { audioBlob, publicUrl };
   };
