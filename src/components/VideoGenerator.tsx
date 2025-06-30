@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, Video, ExternalLink, AlertCircle, CheckCircle, Play, Pause, Maximize2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import TavusApiKeyInput from './TavusApiKeyInput';
 
-const TAVUS_API_KEY = '865e9baf7257454898dd07cdf0243282';
+const DEFAULT_TAVUS_API_KEY = '865e9baf7257454898dd07cdf0243282';
 const REPLICA_ID = 'rca8a38779a8';
 
 interface VideoGeneratorProps {
@@ -31,9 +32,24 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState<string | null>(null);
 
   // Calculate if button should be disabled
   const isButtonDisabled = disabled || !latestAIResponse || isGenerating;
+
+  // Get the API key to use (custom key has priority)
+  const getApiKey = () => {
+    return customApiKey || DEFAULT_TAVUS_API_KEY;
+  };
+
+  const handleApiKeyChange = (apiKey: string | null) => {
+    setCustomApiKey(apiKey);
+    if (apiKey) {
+      console.log('Using custom Tavus API key for video generation');
+    } else {
+      console.log('Using default Tavus API key for video generation');
+    }
+  };
 
   const handleGenerateVideo = async () => {
     if (!latestAIResponse) {
@@ -41,7 +57,11 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       return;
     }
 
+    const apiKeyToUse = getApiKey();
+    const isUsingCustomKey = customApiKey !== null;
+
     console.log('Starting video generation with script:', latestAIResponse.substring(0, 100) + '...');
+    console.log('Using API key:', isUsingCustomKey ? 'Custom user key' : 'Default key');
     
     // IMMEDIATELY show the popup player when button is clicked
     setShowVideoPlayer(true);
@@ -55,13 +75,13 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
-      setStatus('Sending script to Tavus API...');
+      setStatus(`Sending script to Tavus API... ${isUsingCustomKey ? '(Using your API key)' : '(Using default key)'}`);
 
       const response = await fetch('https://tavusapi.com/v2/videos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': TAVUS_API_KEY
+          'x-api-key': apiKeyToUse
         },
         body: JSON.stringify({
           replica_id: REPLICA_ID,
@@ -82,9 +102,17 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
             throw new Error('Invalid replica ID. Please check the configuration.');
           }
         } else if (response.status === 401) {
-          throw new Error('Invalid API key. Please check the Tavus API configuration.');
+          if (isUsingCustomKey) {
+            throw new Error('Invalid custom API key. Please check your Tavus API key.');
+          } else {
+            throw new Error('Default API key expired. Please add your own Tavus API key.');
+          }
         } else if (response.status === 429) {
-          throw new Error('Rate limit exceeded. Please try again later.');
+          if (isUsingCustomKey) {
+            throw new Error('Rate limit exceeded on your API key. Please try again later.');
+          } else {
+            throw new Error('Default API key rate limit exceeded. Please add your own Tavus API key for unlimited access.');
+          }
         }
         
         throw new Error(`Tavus API error: ${response.status} - ${errorData}`);
@@ -94,9 +122,9 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       console.log('Tavus API response:', data);
 
       if (data.video_id) {
-        setStatus('🎥 Video generation started! This may take 5–90 minutes...');
-        toast.success('Video generation started! Check back in a few minutes.');
-        pollVideoStatus(data.video_id);
+        setStatus(`🎥 Video generation started! ${isUsingCustomKey ? '(Priority processing)' : ''} This may take 5–90 minutes...`);
+        toast.success(`Video generation started! ${isUsingCustomKey ? 'Using your API key for priority processing.' : 'Check back in a few minutes.'}`);
+        pollVideoStatus(data.video_id, apiKeyToUse);
       } else {
         throw new Error('No video ID returned from Tavus API');
       }
@@ -104,7 +132,13 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       console.error('Error generating video:', error);
       
       // Provide helpful error messages
-      if (error.message.includes('script')) {
+      if (error.message.includes('Invalid custom API key')) {
+        toast.error('Invalid API key. Please check your Tavus API key and try again.');
+      } else if (error.message.includes('Default API key expired')) {
+        toast.error('Default API key expired. Please add your own Tavus API key to continue.');
+      } else if (error.message.includes('rate limit') && error.message.includes('Default')) {
+        toast.error('Default API limit reached. Add your own Tavus API key for unlimited access.');
+      } else if (error.message.includes('script')) {
         toast.error('Script content issue. Please try generating a different meditation script.');
       } else if (error.message.includes('CORS')) {
         toast.error('Network error: Unable to connect to video generation service.');
@@ -118,7 +152,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
     }
   };
 
-  const pollVideoStatus = async (videoId: string) => {
+  const pollVideoStatus = async (videoId: string, apiKey: string) => {
     const startTime = Date.now();
     const maxDuration = 90 * 60 * 1000; // 90 minutes
     const pollInterval = 15000; // 15 seconds
@@ -133,7 +167,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         setElapsedTime(elapsedMinutes);
 
         const response = await fetch(`https://tavusapi.com/v2/videos/${videoId}`, {
-          headers: { 'x-api-key': TAVUS_API_KEY }
+          headers: { 'x-api-key': apiKey }
         });
 
         if (!response.ok) {
@@ -222,6 +256,12 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
 
   return (
     <div className="space-y-3">
+      {/* Tavus API Key Input */}
+      <TavusApiKeyInput
+        onApiKeyChange={handleApiKeyChange}
+        disabled={isGenerating}
+      />
+
       {/* Generate Video Button */}
       <Button
         onClick={handleGenerateVideo}
