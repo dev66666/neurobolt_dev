@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Video, ExternalLink } from 'lucide-react';
+import { Loader2, Video, ExternalLink, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -15,7 +15,7 @@ const TAVUS_API_KEY = '865e9baf7257454898dd07cdf0243282';
 const REPLICA_ID = 'rca8a38779a8';
 
 interface VideoGeneratorProps {
-  audioUrl?: string;
+  audioUrl?: string | null;
   disabled?: boolean;
 }
 
@@ -38,20 +38,35 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [elapsedTime, setElapsedTime] = useState(0);
 
+  // Debug effect to track audioUrl changes
+  useEffect(() => {
+    console.log('VideoGenerator: audioUrl changed to:', audioUrl);
+  }, [audioUrl]);
+
+  const isButtonDisabled = disabled || !audioUrl || isGenerating;
+
   const handleGenerateVideo = async () => {
     if (!audioUrl) {
-      toast.error('No audio available to generate video');
+      toast.error('No audio available to generate video. Please generate audio first.');
       return;
     }
 
+    console.log('Starting video generation with audio URL:', audioUrl);
+    
     setIsGenerating(true);
     setProgress(0);
     setElapsedTime(0);
     setStatus('Initializing video generation...');
 
     try {
-      console.log('Starting video generation with audio URL:', audioUrl);
-      
+      // Verify audio URL is accessible before sending to Tavus
+      console.log('Verifying audio URL accessibility...');
+      const audioCheck = await fetch(audioUrl, { method: 'HEAD' });
+      if (!audioCheck.ok) {
+        throw new Error(`Audio URL not accessible: ${audioCheck.status}`);
+      }
+      console.log('Audio URL verified successfully');
+
       const response = await fetch('https://tavusapi.com/v2/videos', {
         method: 'POST',
         headers: {
@@ -68,7 +83,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Tavus API error:', response.status, errorData);
-        throw new Error(`Tavus API error: ${response.status}`);
+        throw new Error(`Tavus API error: ${response.status} - ${errorData}`);
       }
 
       const data = await response.json();
@@ -175,11 +190,13 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       {/* Generate Video Button */}
       <Button
         onClick={handleGenerateVideo}
-        disabled={disabled || !audioUrl || isGenerating}
+        disabled={isButtonDisabled}
         variant="outline"
         size="sm"
         className={`w-full flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 ${
           isGenerating ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700' : ''
+        } ${
+          isButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
       >
         {isGenerating ? (
@@ -189,6 +206,23 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         )}
         <span>{isGenerating ? 'Generating...' : 'Generate Video'}</span>
       </Button>
+
+      {/* Audio Status Indicator */}
+      {!audioUrl && (
+        <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
+          <AlertCircle className="h-3 w-3" />
+          Generate audio first to enable video creation
+        </div>
+      )}
+
+      {/* Debug Info (remove in production) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-500 p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
+          Audio URL: {audioUrl ? '✅ Available' : '❌ Not available'}
+          <br />
+          Button disabled: {isButtonDisabled ? 'Yes' : 'No'}
+        </div>
+      )}
 
       {/* Status and Progress */}
       {isGenerating && (

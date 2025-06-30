@@ -55,27 +55,85 @@ export const useTTSAudio = (
 
   // Upload audio to Supabase storage and return public URL
   const uploadAudioToSupabase = async (audioBlob: Blob): Promise<string> => {
-    const fileName = `tts_audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp3`;
-    const filePath = `${user?.id}/${fileName}`;
+    try {
+      console.log('Starting audio upload to Supabase...');
+      
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
 
-    const { data, error } = await supabase.storage
-      .from('music')
-      .upload(filePath, audioBlob, {
-        contentType: 'audio/mpeg',
-        upsert: false
-      });
+      const fileName = `tts_audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp3`;
+      const filePath = `${user.id}/${fileName}`;
 
-    if (error) {
-      console.error('Error uploading audio to Supabase:', error);
-      throw new Error('Failed to upload audio to storage');
+      console.log('Uploading audio file:', filePath, 'Size:', audioBlob.size);
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('music')
+        .upload(filePath, audioBlob, {
+          contentType: 'audio/mpeg',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        throw new Error(`Failed to upload audio: ${error.message}`);
+      }
+
+      console.log('Upload successful:', data);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('music')
+        .getPublicUrl(filePath);
+
+      console.log('Generated public URL:', publicUrl);
+
+      // Verify the URL is accessible
+      try {
+        const testResponse = await fetch(publicUrl, { method: 'HEAD' });
+        if (!testResponse.ok) {
+          console.warn('Public URL not immediately accessible:', testResponse.status);
+        }
+      } catch (testError) {
+        console.warn('Could not verify public URL accessibility:', testError);
+      }
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error in uploadAudioToSupabase:', error);
+      throw error;
+    }
+  };
+
+  // Enhanced TTS function with better error handling
+  const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string }> => {
+    console.log('Calling TTS with voice:', selectedVoice, 'and text length:', text.length);
+    
+    const { data, error } = await supabase.functions.invoke('text-to-speech', {
+      body: {
+        text: text,
+        voice: selectedVoice,
+        userId: user?.id
+      }
+    });
+
+    if (error || !data?.audio) {
+      console.error('TTS API error:', error);
+      throw new Error(error?.message ?? 'TTS generation failed');
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('music')
-      .getPublicUrl(filePath);
+    // Convert base64 to blob
+    const audioBlob = new Blob([
+      Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
+    ], { type: 'audio/mpeg' });
 
-    console.log('Audio uploaded to Supabase:', publicUrl);
-    return publicUrl;
+    console.log('TTS audio generated, size:', audioBlob.size);
+
+    // Upload to Supabase and get public URL
+    const publicUrl = await uploadAudioToSupabase(audioBlob);
+    
+    return { audioBlob, publicUrl };
   };
 
   // Play specific text (for message bubbles)
@@ -94,31 +152,16 @@ export const useTTSAudio = (
 
       try {
         audioAbort.current = new AbortController();
-        console.log('Calling TTS for specific text with voice:', selectedVoice, 'and text length:', text.length);
         
-        const { data, error } = await supabase.functions.invoke('text-to-speech', {
-          body: {
-            text: text,
-            voice: selectedVoice,
-            userId: user?.id
-          }
-        });
-
+        const { audioBlob, publicUrl } = await generateTTSAudio(text);
+        
         if (audioAbort.current?.signal.aborted) {
           return;
         }
 
-        if (error || !data?.audio) {
-          throw new Error(error?.message ?? 'TTS failed');
-        }
-
-        const audioBlob = new Blob([
-          Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
-        ], { type: 'audio/mpeg' });
-        
-        // Upload to Supabase and get public URL
-        const publicUrl = await uploadAudioToSupabase(audioBlob);
+        // Set the public URL for video generation
         setLastGeneratedAudioUrl(publicUrl);
+        console.log('Audio URL set for video generation:', publicUrl);
         
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
@@ -148,7 +191,7 @@ export const useTTSAudio = (
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error('Error playing audio:', error);
-          toast.error('Failed to play audio');
+          toast.error(`Failed to play audio: ${error.message}`);
           setIsAudioProcessing(false);
           setIsPlaying(false);
           audioLock.current = false;
@@ -181,31 +224,16 @@ export const useTTSAudio = (
 
       try {
         audioAbort.current = new AbortController();
-        console.log('Calling TTS with voice:', selectedVoice, 'and text length:', last.text.length);
         
-        const { data, error } = await supabase.functions.invoke('text-to-speech', {
-          body: {
-            text: last.text,
-            voice: selectedVoice,
-            userId: user?.id
-          }
-        });
+        const { audioBlob, publicUrl } = await generateTTSAudio(last.text);
 
         if (audioAbort.current?.signal.aborted) {
           return;
         }
 
-        if (error || !data?.audio) {
-          throw new Error(error?.message ?? 'TTS failed');
-        }
-
-        const audioBlob = new Blob([
-          Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
-        ], { type: 'audio/mpeg' });
-        
-        // Upload to Supabase and get public URL
-        const publicUrl = await uploadAudioToSupabase(audioBlob);
+        // Set the public URL for video generation
         setLastGeneratedAudioUrl(publicUrl);
+        console.log('Audio URL set for video generation:', publicUrl);
         
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
@@ -235,7 +263,7 @@ export const useTTSAudio = (
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error('Error playing audio:', error);
-          toast.error('Failed to play audio');
+          toast.error(`Failed to play audio: ${error.message}`);
           setIsAudioProcessing(false);
           setIsPlaying(false);
           audioLock.current = false;
