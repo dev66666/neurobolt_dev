@@ -53,15 +53,10 @@ export const useTTSAudio = (
     stopBackgroundMusic();
   };
 
-  // Upload audio to GitHub as a public gist
-  const uploadAudioToGitHub = async (audioBlob: Blob): Promise<string> => {
+  // Upload audio to GitHub as a public gist using the base64 string directly
+  const uploadAudioToGitHub = async (base64Audio: string): Promise<string> => {
     try {
-      console.log('Converting audio to base64 for GitHub hosting...');
-      
-      // Convert blob to base64
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const base64String = btoa(String.fromCharCode(...uint8Array));
+      console.log('Uploading audio to GitHub using provided base64 string...');
       
       // Create a unique filename
       const timestamp = Date.now();
@@ -73,7 +68,7 @@ export const useTTSAudio = (
         public: true,
         files: {
           [fileName]: {
-            content: base64String
+            content: base64Audio
           },
           "README.md": {
             content: `# TTS Audio File\n\nGenerated on: ${new Date().toISOString()}\n\nThis is a temporary audio file for text-to-speech functionality.`
@@ -105,14 +100,12 @@ export const useTTSAudio = (
       
     } catch (error) {
       console.error('Error uploading to GitHub:', error);
-      // Fallback to blob URL if GitHub upload fails
-      console.log('Falling back to blob URL...');
-      return URL.createObjectURL(audioBlob);
+      throw error; // Re-throw to handle in calling function
     }
   };
 
   // Enhanced TTS function with GitHub hosting
-  const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string }> => {
+  const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string | null }> => {
     console.log('Calling TTS with voice:', selectedVoice, 'and text length:', text.length);
     
     const { data, error } = await supabase.functions.invoke('text-to-speech', {
@@ -128,15 +121,21 @@ export const useTTSAudio = (
       throw new Error(error?.message ?? 'TTS generation failed');
     }
 
-    // Convert base64 to blob
+    // Convert base64 to blob for local playback
     const audioBlob = new Blob([
       Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
     ], { type: 'audio/mpeg' });
 
     console.log('TTS audio generated, size:', audioBlob.size);
 
-    // Upload to GitHub for public access
-    const publicUrl = await uploadAudioToGitHub(audioBlob);
+    // Try to upload to GitHub for public access
+    let publicUrl: string | null = null;
+    try {
+      publicUrl = await uploadAudioToGitHub(data.audio);
+    } catch (error) {
+      console.warn('GitHub upload failed, video generation will not be available:', error);
+      // Don't throw here - we can still play audio locally
+    }
     
     return { audioBlob, publicUrl };
   };
@@ -164,7 +163,7 @@ export const useTTSAudio = (
           return;
         }
 
-        // Set the public URL for video generation
+        // Set the public URL for video generation (may be null if GitHub upload failed)
         setLastGeneratedAudioUrl(publicUrl);
         console.log('Audio URL set for video generation:', publicUrl);
         
@@ -237,7 +236,7 @@ export const useTTSAudio = (
           return;
         }
 
-        // Set the public URL for video generation
+        // Set the public URL for video generation (may be null if GitHub upload failed)
         setLastGeneratedAudioUrl(publicUrl);
         console.log('Audio URL set for video generation:', publicUrl);
         
