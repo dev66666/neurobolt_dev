@@ -39,6 +39,7 @@ function AppContent() {
     isPlaying,
     isAudioProcessing,
     selectedVoice,
+    lastGeneratedAudioUrl,
     handlePlayLatestResponse,
     handlePauseAudio,
     setSelectedVoice,
@@ -125,6 +126,7 @@ function AppContent() {
       isPlaying={isPlaying}
       isAudioProcessing={isAudioProcessing}
       selectedVoice={selectedVoice}
+      lastGeneratedAudioUrl={lastGeneratedAudioUrl}
       onPlayLatestResponse={handlePlayLatestResponse}
       onPauseAudio={handlePauseAudio}
       onVoiceChange={setSelectedVoice}

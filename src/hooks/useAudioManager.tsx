@@ -43,7 +43,7 @@ export const useAudioManager = (user: any, messages: Message[]) => {
     isAudioProcessing,
     selectedVoice,
     currentAudio,
-    lastGeneratedAudioUrl,
+    lastGeneratedAudioUrl, // Make sure this is exported
     setSelectedVoice,
     handlePlayLatestResponse,
     handlePauseAudio,

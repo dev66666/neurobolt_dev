@@ -41,9 +41,23 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
   // Debug effect to track audioUrl changes
   useEffect(() => {
     console.log('VideoGenerator: audioUrl changed to:', audioUrl);
-  }, [audioUrl]);
+    console.log('VideoGenerator: audioUrl type:', typeof audioUrl);
+    console.log('VideoGenerator: audioUrl is blob?', audioUrl?.startsWith('blob:'));
+    console.log('VideoGenerator: disabled prop:', disabled);
+  }, [audioUrl, disabled]);
 
+  // Calculate if button should be disabled
   const isButtonDisabled = disabled || !audioUrl || isGenerating;
+
+  // Debug log for button state
+  useEffect(() => {
+    console.log('VideoGenerator button state:', {
+      disabled,
+      audioUrl: !!audioUrl,
+      isGenerating,
+      isButtonDisabled
+    });
+  }, [disabled, audioUrl, isGenerating, isButtonDisabled]);
 
   // Convert blob URL to a publicly accessible URL for Tavus
   const prepareAudioForTavus = async (blobUrl: string): Promise<string> => {
@@ -243,7 +257,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         className={`w-full flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 ${
           isGenerating ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700' : ''
         } ${
-          isButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''
+          !isButtonDisabled ? 'hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-700' : ''
         }`}
       >
         {isGenerating ? (
@@ -262,6 +276,14 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         </div>
       )}
 
+      {/* Audio Available Indicator */}
+      {audioUrl && !isGenerating && (
+        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-md">
+          <Video className="h-3 w-3" />
+          Audio ready for video generation
+        </div>
+      )}
+
       {/* MVP Notice */}
       {audioUrl && (
         <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md">
@@ -273,11 +295,11 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       {/* Debug Info (remove in production) */}
       {process.env.NODE_ENV === 'development' && (
         <div className="text-xs text-gray-500 p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
-          Audio URL: {audioUrl ? '✅ Available' : '❌ Not available'}
-          <br />
-          Button disabled: {isButtonDisabled ? 'Yes' : 'No'}
-          <br />
-          URL Type: {audioUrl?.startsWith('blob:') ? 'Blob URL' : 'Other'}
+          <div>Audio URL: {audioUrl ? '✅ Available' : '❌ Not available'}</div>
+          <div>Button disabled: {isButtonDisabled ? 'Yes' : 'No'}</div>
+          <div>URL Type: {audioUrl?.startsWith('blob:') ? 'Blob URL' : audioUrl ? 'Other URL' : 'None'}</div>
+          <div>Disabled prop: {disabled ? 'Yes' : 'No'}</div>
+          <div>Is generating: {isGenerating ? 'Yes' : 'No'}</div>
         </div>
       )}
 
