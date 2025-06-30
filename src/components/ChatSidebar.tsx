@@ -150,6 +150,19 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     try {
       console.log('Fetching chat sessions for user:', user.id);
       
+      // Test Supabase connection first
+      const { data: connectionTest, error: connectionError } = await supabase
+        .from('chat_sessions')
+        .select('count')
+        .limit(1);
+
+      if (connectionError) {
+        console.error('Supabase connection error:', connectionError);
+        toast.error('Unable to connect to database. Please check your internet connection and try again.');
+        setIsLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('chat_sessions')
         .select('*')
@@ -159,14 +172,18 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
       if (error) {
         console.error('Error fetching chat sessions:', error);
-        toast.error('Failed to load chat history');
+        toast.error(`Failed to load chat history: ${error.message}`);
       } else {
         console.log('Fetched chat sessions:', data);
         setChats(data || []);
       }
     } catch (error) {
       console.error('Error in fetchChats:', error);
-      toast.error('Failed to load chat history');
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        toast.error('Network error: Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        toast.error('Failed to load chat history');
+      }
     } finally {
       setIsLoading(false);
     }
