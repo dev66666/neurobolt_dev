@@ -7,6 +7,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import UserSettings from './UserSettings';
 import BackgroundMusicUpload from './BackgroundMusicUpload';
 import VolumeControl from './VolumeControl';
+import VideoGenerator from './VideoGenerator';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -47,6 +48,7 @@ interface ChatSidebarProps {
   onVoiceChange: (voice: 'James' | 'Cassidy' | 'Drew' | 'Lavender') => void;
   isPlaying: boolean;
   isAudioProcessing?: boolean;
+  lastGeneratedAudioUrl?: string;
   // Background music props
   musicName?: string;
   musicVolume?: number;
@@ -69,6 +71,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onVoiceChange,
   isPlaying,
   isAudioProcessing = false,
+  lastGeneratedAudioUrl,
   musicName,
   musicVolume = 0.3,
   isCustomMusic = false,
@@ -354,6 +357,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               {playButtonContent.icon}
               <span>{playButtonContent.text}</span>
             </Button>
+
+            {/* Video Generator Component */}
+            <VideoGenerator
+              audioUrl={lastGeneratedAudioUrl}
+              disabled={!lastGeneratedAudioUrl}
+            />
           </div>
 
           {/* Background Music Upload */}

@@ -20,6 +20,7 @@ export const useTTSAudio = (
   const [isAudioProcessing, setIsAudioProcessing] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<'James' | 'Cassidy' | 'Drew' | 'Lavender'>('Drew');
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [lastGeneratedAudioUrl, setLastGeneratedAudioUrl] = useState<string | null>(null);
 
   // Enhanced audio management refs
   const audioLock = useRef(false);
@@ -50,6 +51,31 @@ export const useTTSAudio = (
     
     // Stop background music when TTS stops
     stopBackgroundMusic();
+  };
+
+  // Upload audio to Supabase storage and return public URL
+  const uploadAudioToSupabase = async (audioBlob: Blob): Promise<string> => {
+    const fileName = `tts_audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp3`;
+    const filePath = `${user?.id}/${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('music')
+      .upload(filePath, audioBlob, {
+        contentType: 'audio/mpeg',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Error uploading audio to Supabase:', error);
+      throw new Error('Failed to upload audio to storage');
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('music')
+      .getPublicUrl(filePath);
+
+    console.log('Audio uploaded to Supabase:', publicUrl);
+    return publicUrl;
   };
 
   // Play specific text (for message bubbles)
@@ -89,6 +115,10 @@ export const useTTSAudio = (
         const audioBlob = new Blob([
           Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
         ], { type: 'audio/mpeg' });
+        
+        // Upload to Supabase and get public URL
+        const publicUrl = await uploadAudioToSupabase(audioBlob);
+        setLastGeneratedAudioUrl(publicUrl);
         
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
@@ -173,6 +203,10 @@ export const useTTSAudio = (
           Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
         ], { type: 'audio/mpeg' });
         
+        // Upload to Supabase and get public URL
+        const publicUrl = await uploadAudioToSupabase(audioBlob);
+        setLastGeneratedAudioUrl(publicUrl);
+        
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
         
@@ -224,6 +258,7 @@ export const useTTSAudio = (
     isAudioProcessing,
     selectedVoice,
     currentAudio,
+    lastGeneratedAudioUrl,
     setSelectedVoice,
     handlePlayLatestResponse,
     handlePauseAudio,
