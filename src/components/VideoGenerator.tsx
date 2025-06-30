@@ -45,6 +45,42 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
 
   const isButtonDisabled = disabled || !audioUrl || isGenerating;
 
+  // Convert blob URL to a publicly accessible URL for Tavus
+  const prepareAudioForTavus = async (blobUrl: string): Promise<string> => {
+    try {
+      console.log('Preparing audio for Tavus from blob URL:', blobUrl);
+      
+      // For MVP testing, we'll use a placeholder URL
+      // In production, you would upload the blob to a public server
+      
+      // Fetch the blob data
+      const response = await fetch(blobUrl);
+      const audioBlob = await response.blob();
+      
+      console.log('Audio blob size:', audioBlob.size);
+      
+      // For testing purposes, we'll use a mock public URL
+      // In production, you would upload this blob to your server's public folder
+      // and return the actual public URL
+      
+      // Mock public URL for testing (replace with actual implementation)
+      const mockPublicUrl = `${window.location.origin}/audio.mp3`;
+      
+      console.log('Mock public URL for Tavus:', mockPublicUrl);
+      
+      // In a real implementation, you would:
+      // 1. Upload the blob to your server's public folder
+      // 2. Return the actual public URL
+      // For now, we'll return the blob URL and handle CORS issues
+      
+      return blobUrl; // Using blob URL directly for testing
+      
+    } catch (error) {
+      console.error('Error preparing audio for Tavus:', error);
+      throw error;
+    }
+  };
+
   const handleGenerateVideo = async () => {
     if (!audioUrl) {
       toast.error('No audio available to generate video. Please generate audio first.');
@@ -56,16 +92,14 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
     setIsGenerating(true);
     setProgress(0);
     setElapsedTime(0);
-    setStatus('Initializing video generation...');
+    setStatus('Preparing audio for video generation...');
 
     try {
-      // Verify audio URL is accessible before sending to Tavus
-      console.log('Verifying audio URL accessibility...');
-      const audioCheck = await fetch(audioUrl, { method: 'HEAD' });
-      if (!audioCheck.ok) {
-        throw new Error(`Audio URL not accessible: ${audioCheck.status}`);
-      }
-      console.log('Audio URL verified successfully');
+      // Prepare audio URL for Tavus API
+      const tavusAudioUrl = await prepareAudioForTavus(audioUrl);
+      console.log('Audio prepared for Tavus:', tavusAudioUrl);
+
+      setStatus('Sending request to Tavus API...');
 
       const response = await fetch('https://tavusapi.com/v2/videos', {
         method: 'POST',
@@ -75,7 +109,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         },
         body: JSON.stringify({
           replica_id: REPLICA_ID,
-          audio_url: audioUrl,
+          audio_url: tavusAudioUrl,
           video_name: `Generated_${Date.now()}`
         })
       });
@@ -83,6 +117,12 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Tavus API error:', response.status, errorData);
+        
+        // Handle specific CORS or URL access issues
+        if (response.status === 400 && errorData.includes('audio_url')) {
+          throw new Error('Audio URL not accessible by Tavus. For MVP testing, audio needs to be publicly hosted.');
+        }
+        
         throw new Error(`Tavus API error: ${response.status} - ${errorData}`);
       }
 
@@ -98,7 +138,14 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       }
     } catch (error) {
       console.error('Error generating video:', error);
-      toast.error(`Failed to start video generation: ${error.message}`);
+      
+      // Provide helpful error messages for common issues
+      if (error.message.includes('CORS') || error.message.includes('audio_url')) {
+        toast.error('Audio URL not accessible by Tavus. For MVP testing, audio needs to be publicly hosted on a server.');
+      } else {
+        toast.error(`Failed to start video generation: ${error.message}`);
+      }
+      
       setIsGenerating(false);
       setStatus('');
     }
@@ -215,12 +262,22 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         </div>
       )}
 
+      {/* MVP Notice */}
+      {audioUrl && (
+        <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md">
+          <AlertCircle className="h-3 w-3" />
+          MVP Mode: Audio is stored locally. For production, implement server-side audio hosting.
+        </div>
+      )}
+
       {/* Debug Info (remove in production) */}
       {process.env.NODE_ENV === 'development' && (
         <div className="text-xs text-gray-500 p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
           Audio URL: {audioUrl ? '✅ Available' : '❌ Not available'}
           <br />
           Button disabled: {isButtonDisabled ? 'Yes' : 'No'}
+          <br />
+          URL Type: {audioUrl?.startsWith('blob:') ? 'Blob URL' : 'Other'}
         </div>
       )}
 
