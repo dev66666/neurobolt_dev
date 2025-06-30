@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Video, ExternalLink, AlertCircle, CheckCircle, Play, Pause, Maximize2 } from 'lucide-react';
+import { Loader2, Video, ExternalLink, AlertCircle, CheckCircle, Play, Pause, Maximize2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TAVUS_API_KEY = '865e9baf7257454898dd07cdf0243282';
@@ -43,12 +43,16 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
 
     console.log('Starting video generation with script:', latestAIResponse.substring(0, 100) + '...');
     
+    // IMMEDIATELY show the popup player when button is clicked
+    setShowVideoPlayer(true);
     setIsGenerating(true);
     setProgress(0);
     setElapsedTime(0);
-    setStatus('Sending request to Tavus API...');
-    setShowVideoPlayer(true); // Show player immediately
-    setCurrentVideoUrl(null); // Reset video URL
+    setCurrentVideoUrl(null);
+    setStatus('Initializing video generation...');
+
+    // Small delay to ensure UI updates
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       setStatus('Sending script to Tavus API...');
@@ -109,8 +113,8 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       }
       
       setIsGenerating(false);
-      setStatus('');
-      setShowVideoPlayer(false);
+      setStatus('Generation failed. Please try again.');
+      // Keep popup open to show error
     }
   };
 
@@ -207,6 +211,15 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
     }
   };
 
+  const closeVideoPlayer = () => {
+    setShowVideoPlayer(false);
+    setIsGenerating(false);
+    setCurrentVideoUrl(null);
+    setStatus('');
+    setProgress(0);
+    setElapsedTime(0);
+  };
+
   return (
     <div className="space-y-3">
       {/* Generate Video Button */}
@@ -229,96 +242,111 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         <span>{isGenerating ? 'Generating...' : 'Generate Video'}</span>
       </Button>
 
-      {/* Video Player Popup - Shows below button when generating or video ready */}
+      {/* Small YouTube-style Video Player Popup (3x3 inches equivalent) */}
       {showVideoPlayer && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-lg">
-          {/* Video Player Header */}
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white dark:bg-gray-800 border-2 border-purple-300 dark:border-purple-600 rounded-lg shadow-xl overflow-hidden" 
+             style={{ width: '240px', minHeight: '180px' }}>
+          
+          {/* Player Header */}
+          <div className="flex items-center justify-between p-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-200 dark:border-purple-700">
             <div className="flex items-center gap-2">
-              <Video className="h-4 w-4 text-purple-600" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {currentVideoUrl ? 'Meditation Video Ready' : 'Generating Video...'}
+              <Video className="h-3 w-3 text-purple-600" />
+              <span className="text-xs font-medium text-purple-800 dark:text-purple-200">
+                {currentVideoUrl ? 'Video Ready' : 'Generating...'}
               </span>
             </div>
-            {currentVideoUrl && (
-              <Button
-                onClick={() => openVideoInNewTab(currentVideoUrl)}
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                title="Open in new tab"
-              >
-                <ExternalLink className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-
-          {/* Video Player or Progress */}
-          {currentVideoUrl ? (
-            <div className="space-y-3">
-              {/* Video Element */}
-              <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
-                <video
-                  id="meditation-video"
-                  src={currentVideoUrl}
-                  className="w-full h-full"
-                  controls
-                  preload="metadata"
-                  onPlay={() => setIsVideoPlaying(true)}
-                  onPause={() => setIsVideoPlaying(false)}
-                  onEnded={() => setIsVideoPlaying(false)}
-                >
-                  Your browser does not support the video tag.
-                </video>
-              </div>
-
-              {/* Video Controls */}
-              <div className="flex items-center justify-between">
-                <Button
-                  onClick={toggleVideoPlayback}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  {isVideoPlaying ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                  {isVideoPlaying ? 'Pause' : 'Play'}
-                </Button>
-
+            <div className="flex items-center gap-1">
+              {currentVideoUrl && (
                 <Button
                   onClick={() => openVideoInNewTab(currentVideoUrl)}
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="flex items-center gap-2"
+                  className="h-5 w-5 p-0 hover:bg-purple-200 dark:hover:bg-purple-800"
+                  title="Open in new tab"
                 >
-                  <Maximize2 className="h-4 w-4" />
-                  Fullscreen
+                  <ExternalLink className="h-2.5 w-2.5" />
                 </Button>
-              </div>
-
-              {/* Video stays active notice */}
-              <div className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-md">
-                <CheckCircle className="h-3 w-3 inline mr-1" />
-                Video link remains active indefinitely
-              </div>
+              )}
+              <Button
+                onClick={closeVideoPlayer}
+                variant="ghost"
+                size="sm"
+                className="h-5 w-5 p-0 hover:bg-red-200 dark:hover:bg-red-800"
+                title="Close player"
+              >
+                <X className="h-2.5 w-2.5" />
+              </Button>
             </div>
-          ) : (
-            /* Progress Section */
-            <div className="space-y-3">
-              <div className="text-sm text-purple-700 dark:text-purple-300">
-                {status}
-              </div>
+          </div>
+
+          {/* Video Player Area */}
+          <div className="p-2">
+            {currentVideoUrl ? (
               <div className="space-y-2">
-                <Progress value={progress} className="h-2" />
-                <div className="text-xs text-purple-600 dark:text-purple-400 text-center">
-                  {elapsedTime} min elapsed • Up to 90 min total
+                {/* Video Element - Small YouTube-style */}
+                <div className="relative bg-black rounded overflow-hidden" style={{ aspectRatio: '16/9', height: '120px' }}>
+                  <video
+                    id="meditation-video"
+                    src={currentVideoUrl}
+                    className="w-full h-full object-cover"
+                    controls
+                    preload="metadata"
+                    onPlay={() => setIsVideoPlaying(true)}
+                    onPause={() => setIsVideoPlaying(false)}
+                    onEnded={() => setIsVideoPlaying(false)}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+
+                {/* Mini Controls */}
+                <div className="flex items-center justify-between">
+                  <Button
+                    onClick={toggleVideoPlayback}
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                  >
+                    {isVideoPlaying ? (
+                      <Pause className="h-2.5 w-2.5 mr-1" />
+                    ) : (
+                      <Play className="h-2.5 w-2.5 mr-1" />
+                    )}
+                    {isVideoPlaying ? 'Pause' : 'Play'}
+                  </Button>
+
+                  <Button
+                    onClick={() => openVideoInNewTab(currentVideoUrl)}
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                  >
+                    <Maximize2 className="h-2.5 w-2.5 mr-1" />
+                    Full
+                  </Button>
+                </div>
+
+                {/* Active status */}
+                <div className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-1 rounded text-center">
+                  <CheckCircle className="h-2.5 w-2.5 inline mr-1" />
+                  Link stays active
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              /* Progress Section - Compact */
+              <div className="space-y-2">
+                <div className="text-xs text-purple-700 dark:text-purple-300 text-center">
+                  {status}
+                </div>
+                <div className="space-y-1">
+                  <Progress value={progress} className="h-1.5" />
+                  <div className="text-xs text-purple-600 dark:text-purple-400 text-center">
+                    {elapsedTime}min • up to 90min
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -338,22 +366,22 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         </div>
       )}
 
-      {/* Generated Videos History */}
-      {generatedVideos.length > 0 && (
+      {/* Generated Videos History - Compact */}
+      {generatedVideos.length > 0 && !showVideoPlayer && (
         <div className="space-y-2">
           <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
             <Video className="h-4 w-4" />
-            Previous Videos
+            Previous Videos ({generatedVideos.length})
           </div>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
-            {generatedVideos.map((video, index) => (
+          <div className="space-y-1 max-h-24 overflow-y-auto">
+            {generatedVideos.slice(0, 3).map((video, index) => (
               <div
                 key={video.id}
-                className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center justify-between p-1.5 bg-gray-50 dark:bg-gray-800 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                    {video.name}
+                    Video {generatedVideos.length - index}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     {video.createdAt.toLocaleTimeString()}
@@ -363,10 +391,10 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
                   onClick={() => openVideoInNewTab(video.url)}
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 hover:bg-purple-100 dark:hover:bg-purple-900/20"
-                  title="Open video in new tab"
+                  className="h-6 w-6 p-0 hover:bg-purple-100 dark:hover:bg-purple-900/20"
+                  title="Open video"
                 >
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-2.5 w-2.5" />
                 </Button>
               </div>
             ))}
