@@ -53,45 +53,72 @@ export const useTTSAudio = (
     stopBackgroundMusic();
   };
 
-  // Save audio blob to public folder as audio.mp3
-  const saveAudioToPublicFolder = async (audioBlob: Blob): Promise<string> => {
+  // Upload audio to a public hosting service (using file.io for temporary hosting)
+  const uploadAudioToPublicHost = async (audioBlob: Blob): Promise<string> => {
     try {
-      console.log('Saving audio to public folder...');
+      console.log('Uploading audio to public host...');
       
-      // Create a File object from the blob
-      const audioFile = new File([audioBlob], 'audio.mp3', { type: 'audio/mpeg' });
-      
-      // Create a FormData object to send the file
       const formData = new FormData();
-      formData.append('audio', audioFile);
+      formData.append('file', audioBlob, 'audio.mp3');
       
-      // Send to a simple endpoint that saves to public folder
-      // For now, we'll use a blob URL and set it as the audio URL
-      const audioUrl = URL.createObjectURL(audioBlob);
+      // Use file.io for temporary public hosting (24 hours)
+      const response = await fetch('https://file.io', {
+        method: 'POST',
+        body: formData
+      });
       
-      // In a real implementation, you would send this to your server:
-      // const response = await fetch('/api/save-audio', {
-      //   method: 'POST',
-      //   body: formData
-      // });
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
       
-      // For MVP testing, we'll use the blob URL directly
-      // and simulate the public URL path
-      const publicAudioUrl = '/audio.mp3'; // This would be the actual path after server save
+      const data = await response.json();
       
-      console.log('Audio saved locally, accessible at:', publicAudioUrl);
+      if (!data.success || !data.link) {
+        throw new Error('Upload service did not return a valid link');
+      }
       
-      // For testing purposes, we'll return the blob URL
-      // In production, you'd return the actual public URL
-      return audioUrl; // This allows immediate playback
+      console.log('Audio uploaded successfully:', data.link);
+      return data.link;
       
     } catch (error) {
-      console.error('Error saving audio to public folder:', error);
-      throw error;
+      console.error('Error uploading to file.io, trying alternative method:', error);
+      
+      // Fallback: Try using tmpfiles.org
+      try {
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio.mp3');
+        
+        const response = await fetch('https://tmpfiles.org/api/v1/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Fallback upload failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.data && data.data.url) {
+          console.log('Audio uploaded to fallback service:', data.data.url);
+          return data.data.url;
+        }
+        
+        throw new Error('Fallback service did not return a valid URL');
+        
+      } catch (fallbackError) {
+        console.error('Fallback upload also failed:', fallbackError);
+        
+        // Final fallback: Use a blob URL and warn the user
+        const blobUrl = URL.createObjectURL(audioBlob);
+        console.warn('Using blob URL as final fallback:', blobUrl);
+        toast.error('Could not upload audio to public host. Video generation may not work.');
+        return blobUrl;
+      }
     }
   };
 
-  // Enhanced TTS function with local file saving
+  // Enhanced TTS function with public hosting
   const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string }> => {
     console.log('Calling TTS with voice:', selectedVoice, 'and text length:', text.length);
     
@@ -115,8 +142,8 @@ export const useTTSAudio = (
 
     console.log('TTS audio generated, size:', audioBlob.size);
 
-    // Save to public folder and get URL
-    const publicUrl = await saveAudioToPublicFolder(audioBlob);
+    // Upload to public hosting service
+    const publicUrl = await uploadAudioToPublicHost(audioBlob);
     
     return { audioBlob, publicUrl };
   };

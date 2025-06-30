@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Video, ExternalLink, AlertCircle } from 'lucide-react';
+import { Loader2, Video, ExternalLink, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -41,25 +41,27 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
   // Calculate if button should be disabled
   const isButtonDisabled = disabled || !audioUrl || isGenerating;
 
-  // Convert blob URL to a publicly accessible URL for Tavus
-  const prepareAudioForTavus = async (blobUrl: string): Promise<string> => {
+  // Validate and prepare audio URL for Tavus
+  const validateAudioUrl = async (url: string): Promise<boolean> => {
     try {
-      console.log('Preparing audio for Tavus from blob URL:', blobUrl);
+      console.log('Validating audio URL:', url);
       
-      // Fetch the blob data
-      const response = await fetch(blobUrl);
-      const audioBlob = await response.blob();
+      // Check if it's a blob URL (not suitable for Tavus)
+      if (url.startsWith('blob:')) {
+        console.warn('Blob URL detected - not suitable for Tavus API');
+        return false;
+      }
       
-      console.log('Audio blob size:', audioBlob.size);
+      // Try to fetch the URL to verify it's accessible
+      const response = await fetch(url, { method: 'HEAD' });
+      const isValid = response.ok && response.headers.get('content-type')?.includes('audio');
       
-      // For testing purposes, we'll use the blob URL directly
-      // In production, you would upload this blob to your server's public folder
-      // and return the actual public URL
-      return blobUrl;
+      console.log('Audio URL validation result:', isValid);
+      return isValid;
       
     } catch (error) {
-      console.error('Error preparing audio for Tavus:', error);
-      throw error;
+      console.error('Error validating audio URL:', error);
+      return false;
     }
   };
 
@@ -74,12 +76,15 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
     setIsGenerating(true);
     setProgress(0);
     setElapsedTime(0);
-    setStatus('Preparing audio for video generation...');
+    setStatus('Validating audio URL...');
 
     try {
-      // Prepare audio URL for Tavus API
-      const tavusAudioUrl = await prepareAudioForTavus(audioUrl);
-      console.log('Audio prepared for Tavus:', tavusAudioUrl);
+      // Validate the audio URL
+      const isValidUrl = await validateAudioUrl(audioUrl);
+      
+      if (!isValidUrl) {
+        throw new Error('Audio URL is not publicly accessible. Please ensure the audio is hosted on a public server.');
+      }
 
       setStatus('Sending request to Tavus API...');
 
@@ -91,8 +96,8 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         },
         body: JSON.stringify({
           replica_id: REPLICA_ID,
-          audio_url: tavusAudioUrl,
-          video_name: `Generated_${Date.now()}`
+          audio_url: audioUrl,
+          video_name: `Meditation_${Date.now()}`
         })
       });
 
@@ -100,9 +105,17 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         const errorData = await response.text();
         console.error('Tavus API error:', response.status, errorData);
         
-        // Handle specific CORS or URL access issues
-        if (response.status === 400 && errorData.includes('audio_url')) {
-          throw new Error('Audio URL not accessible by Tavus. Audio needs to be publicly hosted.');
+        // Handle specific error cases
+        if (response.status === 400) {
+          if (errorData.includes('audio_url')) {
+            throw new Error('Audio URL not accessible by Tavus. The audio file must be publicly hosted.');
+          } else if (errorData.includes('replica_id')) {
+            throw new Error('Invalid replica ID. Please check the configuration.');
+          }
+        } else if (response.status === 401) {
+          throw new Error('Invalid API key. Please check the Tavus API configuration.');
+        } else if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please try again later.');
         }
         
         throw new Error(`Tavus API error: ${response.status} - ${errorData}`);
@@ -112,8 +125,8 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       console.log('Tavus API response:', data);
 
       if (data.video_id) {
-        setStatus('🎥 Video is under generation and may take 5–90 minutes');
-        toast.success('Video generation started!');
+        setStatus('🎥 Video generation started! This may take 5–90 minutes...');
+        toast.success('Video generation started! Check back in a few minutes.');
         pollVideoStatus(data.video_id);
       } else {
         throw new Error('No video ID returned from Tavus API');
@@ -121,11 +134,13 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
     } catch (error) {
       console.error('Error generating video:', error);
       
-      // Provide helpful error messages for common issues
-      if (error.message.includes('CORS') || error.message.includes('audio_url')) {
-        toast.error('Audio URL not accessible by Tavus. Audio needs to be publicly hosted on a server.');
+      // Provide helpful error messages
+      if (error.message.includes('publicly accessible') || error.message.includes('audio_url')) {
+        toast.error('Audio must be hosted on a public server for video generation. Local files cannot be accessed by the video service.');
+      } else if (error.message.includes('CORS')) {
+        toast.error('Network error: Unable to connect to video generation service.');
       } else {
-        toast.error(`Failed to start video generation: ${error.message}`);
+        toast.error(`Video generation failed: ${error.message}`);
       }
       
       setIsGenerating(false);
@@ -166,19 +181,19 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
           const newVideo: GeneratedVideo = {
             id: videoId,
             url: data.hosted_url,
-            name: `Video ${generatedVideos.length + 1}`,
+            name: `Meditation Video ${generatedVideos.length + 1}`,
             createdAt: new Date()
           };
           setGeneratedVideos(prev => [newVideo, ...prev]);
           
           setIsGenerating(false);
           setShowVideoDialog(true);
-          toast.success('Video is ready!');
+          toast.success('🎬 Your meditation video is ready!');
           return;
         } else if (data.status === 'failed') {
           setStatus('❌ Video generation failed');
           setIsGenerating(false);
-          toast.error('Video generation failed');
+          toast.error('Video generation failed. Please try again.');
           return;
         } else {
           // Update status based on current state
@@ -195,15 +210,15 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         if (elapsed < maxDuration) {
           setTimeout(poll, pollInterval);
         } else {
-          setStatus('⚠️ Video not generated from Tavus. Please try again later.');
+          setStatus('⚠️ Video generation timed out. Please try again.');
           setIsGenerating(false);
-          toast.error('Video generation timed out');
+          toast.error('Video generation timed out after 90 minutes.');
         }
       } catch (error) {
         console.error('Error polling video status:', error);
         setStatus('❌ Error checking video status');
         setIsGenerating(false);
-        toast.error('Error checking video status');
+        toast.error('Error checking video status. Please try again.');
       }
     };
 
@@ -236,11 +251,19 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         <span>{isGenerating ? 'Generating...' : 'Generate Video'}</span>
       </Button>
 
-      {/* Simple instruction when no audio */}
+      {/* Instruction when no audio */}
       {!audioUrl && (
         <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
           <AlertCircle className="h-3 w-3" />
           Click Generate Video after Play Script
+        </div>
+      )}
+
+      {/* Audio URL status indicator */}
+      {audioUrl && (
+        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-md">
+          <CheckCircle className="h-3 w-3" />
+          Audio ready for video generation
         </div>
       )}
 
@@ -271,7 +294,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         <div className="space-y-2">
           <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
             <Video className="h-4 w-4" />
-            📽️ Generated Videos
+            Generated Videos
           </div>
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {generatedVideos.map((video, index) => (
@@ -306,9 +329,9 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       <Dialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>🎬 Your Video is Ready!</DialogTitle>
+            <DialogTitle>🎬 Your Meditation Video is Ready!</DialogTitle>
             <DialogDescription>
-              Your meditation video has been successfully generated.
+              Your personalized meditation video has been successfully generated.
             </DialogDescription>
           </DialogHeader>
           {currentVideoUrl && (
