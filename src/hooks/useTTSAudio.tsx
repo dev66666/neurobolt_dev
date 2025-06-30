@@ -53,8 +53,8 @@ export const useTTSAudio = (
     stopBackgroundMusic();
   };
 
-  // Enhanced TTS function that receives public URL from edge function
-  const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob; publicUrl: string | null }> => {
+  // Enhanced TTS function - no longer needs public URL for video generation
+  const generateTTSAudio = async (text: string): Promise<{ audioBlob: Blob }> => {
     console.log('Calling TTS with voice:', selectedVoice, 'and text length:', text.length);
     
     const { data, error } = await supabase.functions.invoke('text-to-speech', {
@@ -76,17 +76,8 @@ export const useTTSAudio = (
     ], { type: 'audio/mpeg' });
 
     console.log('TTS audio generated, size:', audioBlob.size);
-
-    // The public URL is now provided by the edge function
-    const publicUrl = data.publicUrl || null;
     
-    if (publicUrl) {
-      console.log('Public URL received from edge function:', publicUrl);
-    } else {
-      console.warn('No public URL available, video generation will not be available');
-    }
-    
-    return { audioBlob, publicUrl };
+    return { audioBlob };
   };
 
   // Play specific text (for message bubbles)
@@ -106,16 +97,12 @@ export const useTTSAudio = (
       try {
         audioAbort.current = new AbortController();
         
-        const { audioBlob, publicUrl } = await generateTTSAudio(text);
+        const { audioBlob } = await generateTTSAudio(text);
         
         if (audioAbort.current?.signal.aborted) {
           return;
         }
 
-        // Set the public URL for video generation (may be null if GitHub upload failed)
-        setLastGeneratedAudioUrl(publicUrl);
-        console.log('Audio URL set for video generation:', publicUrl);
-        
         // Use the blob directly for immediate playback
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
@@ -179,16 +166,12 @@ export const useTTSAudio = (
       try {
         audioAbort.current = new AbortController();
         
-        const { audioBlob, publicUrl } = await generateTTSAudio(last.text);
+        const { audioBlob } = await generateTTSAudio(last.text);
 
         if (audioAbort.current?.signal.aborted) {
           return;
         }
 
-        // Set the public URL for video generation (may be null if GitHub upload failed)
-        setLastGeneratedAudioUrl(publicUrl);
-        console.log('Audio URL set for video generation:', publicUrl);
-        
         // Use the blob directly for immediate playback
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);

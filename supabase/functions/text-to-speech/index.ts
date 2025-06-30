@@ -50,68 +50,6 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(result)
 }
 
-// Upload audio to GitHub as a public gist using the base64 string
-async function uploadAudioToGitHub(base64Audio: string): Promise<string> {
-  const githubToken = Deno.env.get('GITHUB_GIST_TOKEN')
-  
-  if (!githubToken) {
-    console.warn('GitHub token not found, skipping gist upload')
-    throw new Error('GitHub token not configured')
-  }
-
-  try {
-    console.log('Uploading audio to GitHub using provided base64 string...')
-    
-    // Create a unique filename
-    const timestamp = Date.now()
-    const fileName = `tts_audio_${timestamp}.mp3`
-    
-    // Create a GitHub gist with the audio file
-    const gistData = {
-      description: `TTS Audio - ${new Date().toISOString()}`,
-      public: true,
-      files: {
-        [fileName]: {
-          content: base64Audio
-        },
-        "README.md": {
-          content: `# TTS Audio File\n\nGenerated on: ${new Date().toISOString()}\n\nThis is a temporary audio file for text-to-speech functionality.`
-        }
-      }
-    }
-
-    // Use GitHub API to create gist with authentication
-    const response = await fetch('https://api.github.com/gists', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json',
-        'Authorization': `token ${githubToken}`,
-        'User-Agent': 'TTS-Audio-Service'
-      },
-      body: JSON.stringify(gistData)
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`GitHub API error: ${response.status}`, errorText)
-      throw new Error(`GitHub API error: ${response.status}`)
-    }
-
-    const gist = await response.json()
-    
-    // Get the raw URL for the audio file
-    const rawUrl = gist.files[fileName].raw_url
-    
-    console.log('Audio uploaded to GitHub successfully:', rawUrl)
-    return rawUrl
-    
-  } catch (error) {
-    console.error('Error uploading to GitHub:', error)
-    throw error
-  }
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -226,20 +164,9 @@ serve(async (req) => {
     // Use the efficient base64 encoding function
     const audioBase64 = arrayBufferToBase64(audioBuffer)
 
-    // Try to upload to GitHub for public access (for video generation)
-    let publicUrl: string | null = null
-    try {
-      publicUrl = await uploadAudioToGitHub(audioBase64)
-      console.log('GitHub upload successful, public URL available for video generation')
-    } catch (error) {
-      console.warn('GitHub upload failed, video generation will not be available:', error.message)
-      // Don't fail the entire request - audio can still be played locally
-    }
-
     return new Response(
       JSON.stringify({ 
-        audio: audioBase64,
-        publicUrl: publicUrl
+        audio: audioBase64
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

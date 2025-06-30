@@ -256,7 +256,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const getLatestAIResponse = () => {
     const aiMessages = messages.filter(msg => !msg.isUser);
-    return aiMessages.length > 0 ? aiMessages[aiMessages.length - 1] : null;
+    return aiMessages.length > 0 ? aiMessages[aiMessages.length - 1].text : null;
   };
 
   const getInitials = () => {
@@ -358,10 +358,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <span>{playButtonContent.text}</span>
             </Button>
 
-            {/* Video Generator Component */}
+            {/* Video Generator Component - Now uses latest AI response */}
             <VideoGenerator
-              audioUrl={lastGeneratedAudioUrl}
-              disabled={!lastGeneratedAudioUrl}
+              latestAIResponse={getLatestAIResponse()}
+              disabled={!getLatestAIResponse()}
             />
           </div>
 
