@@ -38,34 +38,13 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  // Debug effect to track audioUrl changes
-  useEffect(() => {
-    console.log('VideoGenerator: audioUrl changed to:', audioUrl);
-    console.log('VideoGenerator: audioUrl type:', typeof audioUrl);
-    console.log('VideoGenerator: audioUrl is blob?', audioUrl?.startsWith('blob:'));
-    console.log('VideoGenerator: disabled prop:', disabled);
-  }, [audioUrl, disabled]);
-
   // Calculate if button should be disabled
   const isButtonDisabled = disabled || !audioUrl || isGenerating;
-
-  // Debug log for button state
-  useEffect(() => {
-    console.log('VideoGenerator button state:', {
-      disabled,
-      audioUrl: !!audioUrl,
-      isGenerating,
-      isButtonDisabled
-    });
-  }, [disabled, audioUrl, isGenerating, isButtonDisabled]);
 
   // Convert blob URL to a publicly accessible URL for Tavus
   const prepareAudioForTavus = async (blobUrl: string): Promise<string> => {
     try {
       console.log('Preparing audio for Tavus from blob URL:', blobUrl);
-      
-      // For MVP testing, we'll use a placeholder URL
-      // In production, you would upload the blob to a public server
       
       // Fetch the blob data
       const response = await fetch(blobUrl);
@@ -73,21 +52,10 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       
       console.log('Audio blob size:', audioBlob.size);
       
-      // For testing purposes, we'll use a mock public URL
+      // For testing purposes, we'll use the blob URL directly
       // In production, you would upload this blob to your server's public folder
       // and return the actual public URL
-      
-      // Mock public URL for testing (replace with actual implementation)
-      const mockPublicUrl = `${window.location.origin}/audio.mp3`;
-      
-      console.log('Mock public URL for Tavus:', mockPublicUrl);
-      
-      // In a real implementation, you would:
-      // 1. Upload the blob to your server's public folder
-      // 2. Return the actual public URL
-      // For now, we'll return the blob URL and handle CORS issues
-      
-      return blobUrl; // Using blob URL directly for testing
+      return blobUrl;
       
     } catch (error) {
       console.error('Error preparing audio for Tavus:', error);
@@ -134,7 +102,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         
         // Handle specific CORS or URL access issues
         if (response.status === 400 && errorData.includes('audio_url')) {
-          throw new Error('Audio URL not accessible by Tavus. For MVP testing, audio needs to be publicly hosted.');
+          throw new Error('Audio URL not accessible by Tavus. Audio needs to be publicly hosted.');
         }
         
         throw new Error(`Tavus API error: ${response.status} - ${errorData}`);
@@ -144,7 +112,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       console.log('Tavus API response:', data);
 
       if (data.video_id) {
-        setStatus('🎥 Video is under generation and may take 5–90 minutes depending on Tavus');
+        setStatus('🎥 Video is under generation and may take 5–90 minutes');
         toast.success('Video generation started!');
         pollVideoStatus(data.video_id);
       } else {
@@ -155,7 +123,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
       
       // Provide helpful error messages for common issues
       if (error.message.includes('CORS') || error.message.includes('audio_url')) {
-        toast.error('Audio URL not accessible by Tavus. For MVP testing, audio needs to be publicly hosted on a server.');
+        toast.error('Audio URL not accessible by Tavus. Audio needs to be publicly hosted on a server.');
       } else {
         toast.error(`Failed to start video generation: ${error.message}`);
       }
@@ -268,38 +236,11 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         <span>{isGenerating ? 'Generating...' : 'Generate Video'}</span>
       </Button>
 
-      {/* Audio Status Indicator */}
+      {/* Simple instruction when no audio */}
       {!audioUrl && (
         <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
           <AlertCircle className="h-3 w-3" />
-          Generate audio first to enable video creation
-        </div>
-      )}
-
-      {/* Audio Available Indicator */}
-      {audioUrl && !isGenerating && (
-        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-md">
-          <Video className="h-3 w-3" />
-          Audio ready for video generation
-        </div>
-      )}
-
-      {/* MVP Notice */}
-      {audioUrl && (
-        <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md">
-          <AlertCircle className="h-3 w-3" />
-          MVP Mode: Audio is stored locally. For production, implement server-side audio hosting.
-        </div>
-      )}
-
-      {/* Debug Info (remove in production) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-500 p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
-          <div>Audio URL: {audioUrl ? '✅ Available' : '❌ Not available'}</div>
-          <div>Button disabled: {isButtonDisabled ? 'Yes' : 'No'}</div>
-          <div>URL Type: {audioUrl?.startsWith('blob:') ? 'Blob URL' : audioUrl ? 'Other URL' : 'None'}</div>
-          <div>Disabled prop: {disabled ? 'Yes' : 'No'}</div>
-          <div>Is generating: {isGenerating ? 'Yes' : 'No'}</div>
+          Click Generate Video after Play Script
         </div>
       )}
 
@@ -361,7 +302,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
         </div>
       )}
 
-      {/* Video Dialog */}
+      {/* Video Dialog with Auto-play */}
       <Dialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
@@ -376,6 +317,7 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({
                 <video
                   src={currentVideoUrl}
                   controls
+                  autoPlay
                   className="w-full h-full"
                   preload="metadata"
                 >
